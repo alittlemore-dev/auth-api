@@ -1,0 +1,82 @@
+name: "test, lint and security"
+
+on:
+  push:
+    paths-ignore:
+      - ".github/README.md"
+      - ".github/README_RU.md"
+      - ".github/badges/**"
+      - "docs/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend-style:
+    name: "Backend style"
+    uses: ./.github/workflows/_backend_style.yaml
+
+  backend-lint:
+    name: "Backend lint"
+    uses: ./.github/workflows/_backend_lint.yaml
+
+  backend-types:
+    name: "Backend types"
+    uses: ./.github/workflows/_backend_types.yaml
+
+  backend-bandit:
+    name: "Backend Bandit"
+    uses: ./.github/workflows/_backend_bandit.yaml
+
+  backend-pip-audit:
+    name: "Backend pip-audit"
+    uses: ./.github/workflows/_backend_pip_audit.yaml
+
+  backend-vulture:
+    name: "Backend Vulture"
+    uses: ./.github/workflows/_backend_vulture.yaml
+
+  backend-tests:
+    name: "Backend tests"
+    needs:
+      - backend-style
+      - backend-lint
+      - backend-types
+      - backend-bandit
+      - backend-pip-audit
+      - backend-vulture
+    uses: ./.github/workflows/_backend_tests.yaml
+
+  dockerfile-lint:
+    name: "Dockerfile lint"
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    needs:
+      - backend-tests
+    uses: ./.github/workflows/_dockerfile_lint.yaml
+
+  trivy-config-scan:
+    name: "Trivy config scan"
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    needs:
+      - backend-tests
+    uses: ./.github/workflows/_trivy_config_scan.yaml
+
+  backend-docker-image-security:
+    name: "Backend Docker image security"
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    needs:
+      - backend-tests
+    uses: ./.github/workflows/_backend_docker_image_security.yaml
+
+  publish-image:
+    name: "Publish image"
+    if: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
+    needs:
+      - dockerfile-lint
+      - trivy-config-scan
+      - backend-docker-image-security
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/_publish_image.yaml

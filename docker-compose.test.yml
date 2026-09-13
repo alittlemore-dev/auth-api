@@ -1,0 +1,17 @@
+services:
+  postgres-test:
+    image: postgres:18.4-alpine
+    container_name: auth_api_postgres_test
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-auth_api_database_test}
+    ports:
+      - "127.0.0.1:${DB_PORT:-55434}:5432"
+    tmpfs:
+      - /var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-auth_api_database_test}"]
+      interval: 2s
+      timeout: 10s
+      retries: 30

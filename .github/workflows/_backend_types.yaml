@@ -1,0 +1,24 @@
+name: Backend types
+
+on:
+  workflow_call:
+
+jobs:
+  backend-types:
+    name: Backend types
+    runs-on: "ubuntu-latest"
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - name: "Set up Python"
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: "pyproject.toml"
+      - name: "Install UV"
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          cache-suffix: "backend-types"
+      - name: "Type check"
+        run: make types

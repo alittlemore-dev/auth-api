@@ -1,0 +1,203 @@
+[project]
+name = "auth-api-backend"
+version = "1.0.0"
+description = "Authentication API"
+authors = [{ name = "Dmitriy Lunev", email = "d.lunev.dev@gmail.com" }]
+requires-python = "==3.14.*,<4.0"
+readme = ".github/README.md"
+license = { text = "MIT" }
+dependencies = [
+    "granian[reload]>=2.8.1",
+    "pydantic-settings>=2.15.0",
+    "psycopg[binary]>=3.3.4",
+    "verbose-http-exceptions[litestar]>=3.0.0",
+    "sqlalchemy[asyncio,mypy]>=2.0.52",
+    "sqlalchemy-dev-utils>=1.4.0",
+    "alembic>=1.19.1",
+    "pyseto>=1.10.0",
+    "structlog>=26.1.0",
+    "litestar[cli,pydantic,valkey]>=2.24.0",
+    "ecs-logging>=2.3.0",
+    "sentry-sdk[litestar]>=2.68.0",
+    "pem>=23.1.0",
+    "argon2-cffi>=25.1.0",
+    "dishka>=1.10.1",
+    "taskiq>=0.12.4",
+    "taskiq-redis>=1.2.3",
+    "ua-parser[regex]>=1.0.2",
+]
+
+[dependency-groups]
+dev = [
+    "bandit>=1.9.4",
+    "coverage>=7.15.4",
+    "httpx>=0.28.1",
+    "mypy>=2.3.1",
+    "pip-audit>=2.10.1",
+    "pytest==9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "pytest-cov>=7.1.0",
+    "pytest-xdist>=3.8.0",
+    "ruff>=0.16.3",
+    "vulture>=2.16",
+]
+local = [
+    "ipython>=9.16.1",
+    "pre-commit>=4.6.2",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+output-format = "concise"
+lint.select = ["ALL"]
+lint.ignore = [
+    "RUF003",
+    "RUF002",
+    "B008",
+    "CPY001",
+    "PLR0917",
+    "Q000",
+    "S101",
+    "PT016",
+    "N805",
+    "COM812",
+    "PLC0414",
+    "D",
+    "ANN10",
+    "RUF001",
+    "RUF012",
+    "FIX",
+    "TD002",
+    "TD003",
+    "TC003",
+    "TC002",
+    "TC001",
+]
+line-length = 100
+exclude = [
+    ".git",
+    "__pycache__",
+    ".venv",
+    ".eggs",
+    "*.egg",
+    "dist",
+    "tests/fixtures/**",
+    "tests/**/snapshots/**",
+    "src/infra/postgresql/alembic",
+    "airich",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"src/**/*.py" = ["PD"]
+"tests/**/*.py" = ["S101", "FBT", "ARG002", "PT004", "ANN201", "PLR2004"]
+"tests/conftest.py" = ["ARG001", "ANN401"]
+"tests/unit/conftest.py" = ["ARG001", "ANN401"]
+"tests/unit/mocks/**/*.py" = ["ARG002", "ARG003"]
+"tests/helpers/*.py" = ["PLR0913", "ANN401"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+ignore-decorators = ["typing.overload"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 11
+
+[tool.ruff.lint.pep8-naming]
+classmethod-decorators = [
+    "pydantic.model_validator",
+    "pydantic.field_validator",
+]
+
+[tool.mypy]
+mypy_path = ["src"]
+plugins = ["pydantic.mypy"]
+follow_imports = "silent"
+strict = true
+disallow_subclassing_any = false
+disallow_any_generics = false
+ignore_missing_imports = true
+disable_error_code = ["import-untyped"]
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_calls = false
+disallow_untyped_decorators = false
+
+[[tool.mypy.overrides]]
+module = ["tests.helpers.app"]
+warn_return_any = false
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+[tool.black]
+line-length = 100
+skip-string-normalization = true
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 100
+multi_line_output = 3
+
+[tool.coverage]
+[tool.coverage.run]
+source = ["src"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "enum.Enum",
+    "(Protocol):",
+    "(typing.Protocol):",
+    "pragma: no cover",
+    "pragma: no coverage",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if typing.TYPE_CHECKING:",
+    "@overload",
+    "raise AssertionError",
+]
+omit = [
+    "src/main.py",
+    "src/infra/postgresql/alembic/**",
+    "src/infra/postgresql/meta.py",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = [
+    "error",
+    "ignore:Core Pydantic V1 functionality isn't compatible with Python 3\\.14 or greater\\.:UserWarning:litestar\\.plugins\\.pydantic\\.utils",
+]
+
+[tool.behave]
+paths = ["tests/bdd"]
+
+[tool.bandit]
+exclude = ['tests']
+
+[tool.bandit.assert_used]
+skips = ['*_test.py', '*/test_*.py']

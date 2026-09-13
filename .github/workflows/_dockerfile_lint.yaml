@@ -1,0 +1,17 @@
+name: Dockerfile lint
+
+on:
+  workflow_call:
+
+jobs:
+  dockerfile-lint:
+    name: Dockerfile lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+      - name: Lint Dockerfiles
+        run: make lint-dockerfiles

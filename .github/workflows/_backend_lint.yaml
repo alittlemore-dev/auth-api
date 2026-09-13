@@ -1,0 +1,24 @@
+name: Backend lint
+
+on:
+  workflow_call:
+
+jobs:
+  backend-lint:
+    name: Backend lint
+    runs-on: "ubuntu-latest"
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - name: "Set up Python"
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: "pyproject.toml"
+      - name: "Install UV"
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          cache-suffix: "backend-lint"
+      - name: "Ruff lint"
+        run: make ruff-lint-check

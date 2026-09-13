@@ -1,0 +1,14 @@
+name: Trivy config scan
+
+on:
+  workflow_call:
+
+jobs:
+  trivy-config-scan:
+    name: Trivy config scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+      - name: Trivy infrastructure config scan
+        run: make security-trivy-config
