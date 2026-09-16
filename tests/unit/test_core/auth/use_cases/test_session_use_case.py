@@ -498,7 +498,7 @@ class TestAuthSessionUseCase(TestCase):
             role=RoleEnum.ADMIN,
         )
 
-        user = await self.use_case.authenticate(
+        result = await self.use_case.authenticate(
             params=AuthAuthenticateParams(
                 token=token,
                 required_role=RoleEnum.MODERATOR,
@@ -506,11 +506,12 @@ class TestAuthSessionUseCase(TestCase):
             ),
         )
 
-        assert user == self.factory.core.user(
+        assert result.user == self.factory.core.user(
             username="admin",
             password_hash="hash",
             role=RoleEnum.ADMIN,
         )
+        assert result.session.id == "10000000000040008000000000000001"
         self.session_storage.get_session_by_id.assert_called_once_with(
             session_id="10000000000040008000000000000001",
         )

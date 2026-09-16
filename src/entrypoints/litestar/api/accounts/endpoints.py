@@ -18,11 +18,12 @@ from core.account.schemas import (
     ManagedAccountTargetOperationParams,
 )
 from core.account.use_cases import AccountsUseCase
-from core.auth.exceptions import UnauthorizedError
 from core.auth.schemas import JwtUser
-from core.auth.token_handlers import TokenHandler
 from core.auth.types import Token
-from entrypoints.litestar.api.accounts.dependencies import provide_managed_account_filters
+from entrypoints.litestar.api.accounts.dependencies import (
+    provide_current_session_id,
+    provide_managed_account_filters,
+)
 from entrypoints.litestar.api.accounts.schemas import (
     ManagedAccountCreateRequestSchema,
     ManagedAccountPasswordUpdateRequestSchema,
@@ -32,10 +33,9 @@ from entrypoints.litestar.api.accounts.schemas import (
     ManagedAccountSessionsResponseSchema,
     ManagedAccountsResponseSchema,
 )
+from entrypoints.litestar.api.openapi import OPENAPI_PASSWORD_EXAMPLE
 from entrypoints.litestar.api.parameters import SessionIdPath, UsernamePath, api_json_body
 from entrypoints.litestar.guards import team_manager_guard
-
-_OPENAPI_PASSWORD_EXAMPLE = "string"  # noqa: S105  # nosec B105
 
 
 class AdminAccountsApiController(Controller):
@@ -74,7 +74,7 @@ class AdminAccountsApiController(Controller):
                 examples=(
                     {
                         "username": "moderator",
-                        "password": _OPENAPI_PASSWORD_EXAMPLE,
+                        "password": OPENAPI_PASSWORD_EXAMPLE,
                         "role": "moderator",
                         "isActive": True,
                     },
@@ -111,12 +111,15 @@ class AdminAccountsApiController(Controller):
         description="Get active managed account sessions.",
         name="admin-accounts-sessions-list-api-handler",
         status_code=status_codes.HTTP_200_OK,
+        dependencies={
+            "current_session_id": Provide(provide_current_session_id),
+        },
     )
     async def list_account_sessions(
         self,
         username: UsernamePath,
         request: Request[JwtUser, Token | None, State],
-        token_handler: FromDishka[TokenHandler],
+        current_session_id: NamedDependency[str],
         current_datetime: FromDishka[datetime],
         use_case: FromDishka[AccountsUseCase],
     ) -> ManagedAccountSessionsResponseSchema:
@@ -124,10 +127,7 @@ class AdminAccountsApiController(Controller):
             params=ManagedAccountSessionsOperationParams(
                 target_username=username,
                 current_username=request.user.username,
-                current_session_id=self._current_session_id(
-                    request=request,
-                    token_handler=token_handler,
-                ),
+                current_session_id=current_session_id,
                 current_datetime=current_datetime,
             ),
         )
@@ -138,13 +138,16 @@ class AdminAccountsApiController(Controller):
         description="Revoke a managed account session.",
         name="admin-accounts-session-revoke-api-handler",
         status_code=status_codes.HTTP_200_OK,
+        dependencies={
+            "current_session_id": Provide(provide_current_session_id),
+        },
     )
     async def revoke_account_session(
         self,
         username: UsernamePath,
         session_id: SessionIdPath,
         request: Request[JwtUser, Token | None, State],
-        token_handler: FromDishka[TokenHandler],
+        current_session_id: NamedDependency[str],
         use_case: FromDishka[AccountsUseCase],
     ) -> ManagedAccountSessionRevocationResponseSchema:
         result = await use_case.revoke_account_session(
@@ -152,10 +155,7 @@ class AdminAccountsApiController(Controller):
                 target_username=username,
                 current_username=request.user.username,
                 target_session_id=session_id,
-                current_session_id=self._current_session_id(
-                    request=request,
-                    token_handler=token_handler,
-                ),
+                current_session_id=current_session_id,
             ),
         )
         return ManagedAccountSessionRevocationResponseSchema.from_domain_schema(schema=result)
@@ -165,12 +165,15 @@ class AdminAccountsApiController(Controller):
         description="Revoke all managed account sessions.",
         name="admin-accounts-sessions-revoke-all-api-handler",
         status_code=status_codes.HTTP_200_OK,
+        dependencies={
+            "current_session_id": Provide(provide_current_session_id),
+        },
     )
     async def revoke_all_account_sessions(
         self,
         username: UsernamePath,
         request: Request[JwtUser, Token | None, State],
-        token_handler: FromDishka[TokenHandler],
+        current_session_id: NamedDependency[str],
         current_datetime: FromDishka[datetime],
         use_case: FromDishka[AccountsUseCase],
     ) -> ManagedAccountSessionRevocationResponseSchema:
@@ -178,10 +181,7 @@ class AdminAccountsApiController(Controller):
             params=ManagedAccountSessionsOperationParams(
                 target_username=username,
                 current_username=request.user.username,
-                current_session_id=self._current_session_id(
-                    request=request,
-                    token_handler=token_handler,
-                ),
+                current_session_id=current_session_id,
                 current_datetime=current_datetime,
             ),
         )
@@ -192,35 +192,25 @@ class AdminAccountsApiController(Controller):
         description="Revoke other sessions for the current managed account.",
         name="admin-accounts-sessions-revoke-others-api-handler",
         status_code=status_codes.HTTP_200_OK,
+        dependencies={
+            "current_session_id": Provide(provide_current_session_id),
+        },
     )
     async def revoke_other_account_sessions(
         self,
         username: UsernamePath,
         request: Request[JwtUser, Token | None, State],
-        token_handler: FromDishka[TokenHandler],
+        current_session_id: NamedDependency[str],
         use_case: FromDishka[AccountsUseCase],
     ) -> ManagedAccountSessionRevocationResponseSchema:
         result = await use_case.revoke_other_account_sessions(
             params=ManagedAccountSessionsRevokeOthersOperationParams(
                 target_username=username,
                 current_username=request.user.username,
-                current_session_id=self._current_session_id(
-                    request=request,
-                    token_handler=token_handler,
-                ),
+                current_session_id=current_session_id,
             ),
         )
         return ManagedAccountSessionRevocationResponseSchema.from_domain_schema(schema=result)
-
-    def _current_session_id(
-        self,
-        *,
-        request: Request[JwtUser, Token | None, State],
-        token_handler: TokenHandler,
-    ) -> str:
-        if request.auth is None:
-            raise UnauthorizedError
-        return token_handler.decode_token(request.auth).session_id
 
     @put(
         "/{username:str}/role",
@@ -265,7 +255,7 @@ class AdminAccountsApiController(Controller):
             api_json_body(
                 title="Managed account password update request",
                 description="Replacement password for the managed account.",
-                examples=({"password": _OPENAPI_PASSWORD_EXAMPLE},),
+                examples=({"password": OPENAPI_PASSWORD_EXAMPLE},),
             ),
         ],
         request: Request[JwtUser, Token | None, State],

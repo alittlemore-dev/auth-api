@@ -5,7 +5,12 @@ import pytest
 from litestar.middleware import AuthenticationResult
 
 from core.auth.enums import RoleEnum
-from core.auth.schemas import AuthAuthenticateParams, JwtUser
+from core.auth.schemas import (
+    AuthAuthenticateParams,
+    AuthAuthenticationResult,
+    AuthSession,
+    JwtUser,
+)
 from core.auth.types import Token
 from entrypoints.litestar.middlewares.auth import AuthenticationMiddleware
 from tests.test_cases import ContainerTestCase
@@ -40,9 +45,9 @@ class TestAuthenticationMiddleware(ContainerTestCase):
         assert result == AuthenticationResult(user=JwtUser.anonymous(), auth=None)
 
     async def test_authenticate(self) -> None:
-        self.use_case.authenticate.return_value = self.factory.core.jwt_user(
-            username="test",
-            role=RoleEnum.MODERATOR,
+        self.use_case.authenticate.return_value = AuthAuthenticationResult(
+            user=self.factory.core.user(username="test", role=RoleEnum.MODERATOR),
+            session=Mock(spec=AuthSession),
         )
         connection_mock = Mock()
         connection_mock.headers = {"Authorization": "Bearer token"}

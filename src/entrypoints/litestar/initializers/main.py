@@ -14,6 +14,7 @@ from litestar.plugins.pydantic import PydanticPlugin
 from litestar.plugins.structlog import StructlogConfig, StructlogPlugin
 from litestar.types import Middleware
 
+from entrypoints.litestar.api.auth.responses import set_verify_response_no_store
 from entrypoints.litestar.api.routers import api_router
 from entrypoints.litestar.cli.plugins import CLIPlugin
 from entrypoints.litestar.exception_handlers import get_litestar_exception_handlers
@@ -75,7 +76,7 @@ def create_middlewares(container: AsyncContainer) -> list[Middleware]:
             token_header_name=settings.auth.token_header_name,
             token_prefix=settings.auth.token_prefix,
             container=container,
-            exclude=["/api/auth/docs"],
+            exclude=["/api/auth/docs", "/api/auth/verify"],
             exclude_from_auth_key="exclude_from_auth",
             exclude_http_methods=None,
             scopes=None,
@@ -114,6 +115,7 @@ def create_litestar_app(
         route_handlers=create_routers(),
         lifespan=lifespan,
         debug=settings.app.debug,
+        before_send=[set_verify_response_no_store],
         exception_handlers=get_litestar_exception_handlers(),
         middleware=[*create_middlewares(container), *extra_middlewares],
         plugins=[*create_plugins(), *extra_plugins],

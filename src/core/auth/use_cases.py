@@ -1,6 +1,7 @@
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import timedelta
+from math import ceil
 
 from core.account.storages import UserAccountStorage
 from core.auth.enums import AuthSessionAuthMethodEnum
@@ -17,6 +18,7 @@ from core.auth.schemas import (
     AccessTokenPayload,
     AccessTokenResult,
     AuthAuthenticateParams,
+    AuthAuthenticationResult,
     AuthLoginParams,
     AuthLoginResult,
     AuthLogoutParams,
@@ -29,7 +31,7 @@ from core.auth.schemas import (
     AuthSessionCreate,
     AuthSessionCredentials,
     AuthUseCaseConfig,
-    User,
+    AuthVerificationResult,
 )
 from core.auth.storages import AuthSessionStorage, AuthStorage, TokenRevocationStorage
 from core.auth.token_handlers import TokenHandler
@@ -112,7 +114,7 @@ class AuthUseCase:
             ),
         )
 
-    async def authenticate(self, *, params: AuthAuthenticateParams) -> User:
+    async def authenticate(self, *, params: AuthAuthenticateParams) -> AuthAuthenticationResult:
         if await self.token_revocation_storage.is_token_revoked(token=params.token):
             self.event_reporter.report_authentication_revoked_token_used()
             raise UnauthorizedError
@@ -141,7 +143,27 @@ class AuthUseCase:
         if not user.is_active:
             self.event_reporter.report_authentication_inactive_user(username=user.username)
             raise UnauthorizedError
-        return user
+        return AuthAuthenticationResult(user=user, session=session)
+
+    async def verify_access_token(
+        self,
+        *,
+        params: AuthAuthenticateParams,
+    ) -> AuthVerificationResult:
+        authentication = await self.authenticate(params=params)
+        token_remaining_seconds = self.token_handler.get_token_remaining_seconds(params.token)
+        if token_remaining_seconds is None:
+            raise UnauthorizedError
+        session_remaining_seconds = ceil(
+            (
+                min(authentication.session.expires_at, authentication.session.absolute_expires_at)
+                - params.current_datetime
+            ).total_seconds(),
+        )
+        return AuthVerificationResult(
+            user=authentication.user,
+            valid_for_seconds=min(token_remaining_seconds, session_remaining_seconds),
+        )
 
     async def refresh_access_token(
         self,

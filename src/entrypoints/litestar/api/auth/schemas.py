@@ -2,7 +2,8 @@ from typing import Annotated, Self
 
 from pydantic import Field
 
-from core.auth.schemas import AccessTokenResult
+from core.auth.enums import RoleEnum
+from core.auth.schemas import AccessTokenResult, AuthVerificationResult
 from entrypoints.litestar.api.schemas import CamelCaseSchema
 
 PASETO_TOKEN_EXAMPLE = (
@@ -36,6 +37,20 @@ class AccessTokenResponseSchema(CamelCaseSchema):
         return cls(
             access_token=schema.token.decode(),
             access_token_expires_in_seconds=schema.expires_in_seconds,
+        )
+
+
+class VerifyAccessTokenResponseSchema(CamelCaseSchema):
+    username: str
+    role: RoleEnum
+    valid_for_seconds: int
+
+    @classmethod
+    def from_domain_schema(cls, *, schema: AuthVerificationResult) -> Self:
+        return cls(
+            username=schema.user.username,
+            role=schema.user.role,
+            valid_for_seconds=schema.valid_for_seconds,
         )
 
 

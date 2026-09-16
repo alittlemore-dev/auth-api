@@ -24,6 +24,7 @@ from core.auth.enums import AuthSessionAuthMethodEnum, AuthSessionDeviceTypeEnum
 from core.auth.schemas import AuthSessionClientMetadata, JwtUser
 from core.schemas import Secret
 from tests.test_cases import ApiTestCase
+from tests.unit.mocks.providers.auth import mock_authentication_result
 
 
 class TestAdminAccountsAPI(ApiTestCase):
@@ -368,9 +369,8 @@ class TestAdminAccountsAPI(ApiTestCase):
         self.use_case.list_accounts.assert_not_called()
 
     def test_allows_owner_role(self) -> None:
-        self.authentication_use_case.authenticate.return_value = JwtUser(
-            username="owner",
-            role=RoleEnum.OWNER,
+        self.authentication_use_case.authenticate.return_value = mock_authentication_result(
+            JwtUser(username="owner", role=RoleEnum.OWNER)
         )
         self.use_case.list_accounts.return_value = self.factory.core.managed_accounts()
 
@@ -379,9 +379,8 @@ class TestAdminAccountsAPI(ApiTestCase):
         self.asserts.status(response=response, expected_status=codes.OK)
 
     def test_requires_team_manager_role(self) -> None:
-        self.authentication_use_case.authenticate.return_value = JwtUser(
-            username="moderator",
-            role=RoleEnum.MODERATOR,
+        self.authentication_use_case.authenticate.return_value = mock_authentication_result(
+            JwtUser(username="moderator", role=RoleEnum.MODERATOR)
         )
 
         response = self.api.get_admin_accounts()

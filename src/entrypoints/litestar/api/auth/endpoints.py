@@ -3,109 +3,70 @@ from typing import Annotated
 
 from dishka import FromDishka
 from dishka.integrations.litestar import DishkaRouter
-from litestar import Controller, Request, Response, post, status_codes
+from litestar import Controller, Response, post, status_codes
+from litestar.di import NamedDependency, Provide
+from litestar.exceptions import ServiceUnavailableException
 
 from core.auth.enums import RoleEnum
 from core.auth.exceptions import ForbiddenError, UnauthorizedError
 from core.auth.schemas import (
-    AccessTokenResult,
+    AuthAuthenticateParams,
     AuthLoginParams,
-    AuthLoginResult,
     AuthLogoutParams,
     AuthRefreshAccessTokenParams,
-    AuthRefreshAccessTokenResult,
     AuthSessionClientMetadata,
-    AuthSessionCredentials,
     AuthUseCaseConfig,
 )
 from core.auth.types import SessionSecret, Token
 from core.auth.use_cases import AuthUseCase
-from entrypoints.litestar.api.auth.schemas import AccessTokenResponseSchema, LoginRequestSchema
+from entrypoints.litestar.api.auth.dependencies import (
+    provide_logout_session_secret,
+    provide_refresh_session_secret,
+)
+from entrypoints.litestar.api.auth.responses import (
+    create_login_response,
+    create_logout_response,
+    create_refresh_response,
+    create_verify_response,
+)
+from entrypoints.litestar.api.auth.schemas import (
+    AccessTokenResponseSchema,
+    LoginRequestSchema,
+    VerifyAccessTokenResponseSchema,
+)
+from entrypoints.litestar.api.openapi import OPENAPI_PASSWORD_EXAMPLE
 from entrypoints.litestar.api.parameters import api_json_body
-from infra.config.constants import constants
-
-_OPENAPI_PASSWORD_EXAMPLE = "string"  # noqa: S105  # nosec B105
-
-
-def require_auth_cookie_csrf_guard(request: Request) -> None:
-    csrf_guard = request.headers.get(constants.auth.csrf_guard_header_name)
-    if csrf_guard != constants.auth.csrf_guard_header_value:
-        raise ForbiddenError
-    fetch_site = request.headers.get(constants.auth.fetch_metadata_site_header_name)
-    if fetch_site == constants.auth.fetch_metadata_cross_site_value:
-        raise ForbiddenError
-
-
-def get_required_session_secret(request: Request) -> SessionSecret:
-    session_secret = request.cookies.get(constants.auth.session_cookie_name)
-    if session_secret is None:
-        raise UnauthorizedError
-    return SessionSecret(session_secret)
-
-
-def get_optional_session_secret(request: Request) -> SessionSecret | None:
-    session_secret = request.cookies.get(constants.auth.session_cookie_name)
-    if session_secret is None:
-        return None
-    return SessionSecret(session_secret)
-
-
-def create_access_token_response(
-    *,
-    result: AccessTokenResult,
-) -> Response[AccessTokenResponseSchema]:
-    return Response(
-        content=AccessTokenResponseSchema.from_domain_schema(schema=result),
-        headers={"Cache-Control": constants.auth.no_store_header_value},
-    )
-
-
-def set_session_cookie(
-    *,
-    response: Response[AccessTokenResponseSchema],
-    session: AuthSessionCredentials,
-) -> None:
-    response.set_cookie(
-        key=constants.auth.session_cookie_name,
-        value=session.secret,
-        max_age=session.expires_in_seconds,
-        path=constants.auth.session_cookie_path,
-        secure=True,
-        httponly=True,
-        samesite="lax",
-    )
-
-
-def create_login_response(*, result: AuthLoginResult) -> Response[AccessTokenResponseSchema]:
-    response = create_access_token_response(result=result.access_token)
-    set_session_cookie(response=response, session=result.session)
-    return response
-
-
-def create_refresh_response(
-    *,
-    result: AuthRefreshAccessTokenResult,
-) -> Response[AccessTokenResponseSchema]:
-    response = create_access_token_response(result=result.access_token)
-    set_session_cookie(response=response, session=result.session)
-    return response
-
-
-def create_logout_response() -> Response[None]:
-    response = Response(
-        content=None,
-        headers={"Cache-Control": constants.auth.no_store_header_value},
-    )
-    response.delete_cookie(
-        key=constants.auth.session_cookie_name,
-        path=constants.auth.session_cookie_path,
-    )
-    return response
 
 
 class AuthApiController(Controller):
     path = "/"
     tags = ["auth"]
+
+    @post(
+        "/verify",
+        name="verify-access-token-api-handler",
+        description="Verify a bearer access token for a backend service.",
+        status_code=status_codes.HTTP_200_OK,
+    )
+    async def verify_access_token(
+        self,
+        token: FromDishka[Token],
+        use_case: FromDishka[AuthUseCase],
+        current_datetime: FromDishka[datetime],
+    ) -> Response[VerifyAccessTokenResponseSchema]:
+        try:
+            result = await use_case.verify_access_token(
+                params=AuthAuthenticateParams(
+                    token=token,
+                    required_role=RoleEnum.USER,
+                    current_datetime=current_datetime,
+                ),
+            )
+        except UnauthorizedError, ForbiddenError:
+            raise
+        except Exception as exc:
+            raise ServiceUnavailableException from exc
+        return create_verify_response(result=result)
 
     @post(
         "/login",
@@ -123,7 +84,7 @@ class AuthApiController(Controller):
             api_json_body(
                 title="Login request",
                 description="Username and password used to create a PASETO access token.",
-                examples=({"username": "moderator", "password": _OPENAPI_PASSWORD_EXAMPLE},),
+                examples=({"username": "moderator", "password": OPENAPI_PASSWORD_EXAMPLE},),
             ),
         ],
         use_case: FromDishka[AuthUseCase],
@@ -148,19 +109,21 @@ class AuthApiController(Controller):
         name="refresh-api-handler",
         description="Refresh the short-lived access token from the server-side session cookie.",
         status_code=status_codes.HTTP_200_OK,
+        dependencies={
+            "session_secret": Provide(provide_refresh_session_secret, sync_to_thread=False),
+        },
     )
     async def refresh(
         self,
-        request: Request,
+        session_secret: NamedDependency[SessionSecret],
         use_case: FromDishka[AuthUseCase],
         config: FromDishka[AuthUseCaseConfig],
         current_datetime: FromDishka[datetime],
     ) -> Response[AccessTokenResponseSchema]:
-        require_auth_cookie_csrf_guard(request)
         result = await use_case.refresh_access_token(
             config=config,
             params=AuthRefreshAccessTokenParams(
-                session_secret=get_required_session_secret(request),
+                session_secret=session_secret,
                 required_role=RoleEnum.MODERATOR,
                 current_datetime=current_datetime,
             ),
@@ -172,18 +135,20 @@ class AuthApiController(Controller):
         name="logout-api-handler",
         description="Log out of the system. Revokes the current session and PASETO access token.",
         status_code=status_codes.HTTP_200_OK,
+        dependencies={
+            "session_secret": Provide(provide_logout_session_secret, sync_to_thread=False),
+        },
     )
     async def logout(
         self,
-        request: Request,
+        session_secret: NamedDependency[SessionSecret | None],
         token: FromDishka[Token],
         use_case: FromDishka[AuthUseCase],
     ) -> Response[None]:
-        require_auth_cookie_csrf_guard(request)
         await use_case.logout(
             params=AuthLogoutParams(
                 token=token,
-                session_secret=get_optional_session_secret(request),
+                session_secret=session_secret,
             ),
         )
         return create_logout_response()

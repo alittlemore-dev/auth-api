@@ -42,12 +42,17 @@ class TestLoginUseCase(ContainerTestCase):
             auth_session_secret_generator=AuthSessionSecretGenerator(byte_count=32),
         )
 
-    def _set_active_session(self, *, username: str = "test") -> None:
+    def _set_active_session(
+        self,
+        *,
+        username: str = "test",
+        expires_at: datetime | None = None,
+    ) -> None:
         self.auth_session_storage.get_session_by_id.return_value = AuthSession(
             id="session-id",
             username=username,
             secret_hash=SessionSecretHash("session-secret-hash"),
-            expires_at=self.now + timedelta(days=1),
+            expires_at=expires_at or self.now + timedelta(days=1),
             absolute_expires_at=self.now + timedelta(days=30),
             is_revoked=False,
             created_at=self.now,
@@ -171,18 +176,71 @@ class TestLoginUseCase(ContainerTestCase):
         )
         self._set_active_session()
         self.token_handler.encode_token.return_value = b"NEW_TOKEN"
-        user = await self.use_case.authenticate(
+        result = await self.use_case.authenticate(
             params=AuthAuthenticateParams(
                 token=Token(b"valid_token"),
                 required_role=RoleEnum.ADMIN,
                 current_datetime=self.now,
             ),
         )
-        assert user == self.factory.core.user(
+        assert result.user == self.factory.core.user(
             username="test",
             password_hash="test",
             role=RoleEnum.ADMIN,
         )
+        assert result.session.id == "session-id"
+
+    async def test_verify_access_token_returns_the_shortest_remaining_validity(self) -> None:
+        self.user_storage.get_user_by_username.return_value = self.factory.core.user(
+            username="test",
+            password_hash="test",
+            role=RoleEnum.USER,
+        )
+        self.token_handler.decode_token.return_value = AccessTokenPayload(
+            username="test",
+            session_id="session-id",
+        )
+        self._set_active_session()
+        self.token_handler.get_token_remaining_seconds.return_value = 900
+
+        result = await self.use_case.verify_access_token(
+            params=AuthAuthenticateParams(
+                token=Token(b"valid_token"),
+                required_role=RoleEnum.USER,
+                current_datetime=self.now,
+            ),
+        )
+
+        assert result.user.username == "test"
+        assert result.user.role is RoleEnum.USER
+        assert result.valid_for_seconds == 900
+        self.token_handler.decode_token.assert_called_once_with(Token(b"valid_token"))
+        self.auth_session_storage.get_session_by_id.assert_called_once_with(
+            session_id="session-id",
+        )
+
+    async def test_verify_access_token_is_limited_by_session_expiry(self) -> None:
+        self.user_storage.get_user_by_username.return_value = self.factory.core.user(
+            username="test",
+            password_hash="test",
+            role=RoleEnum.USER,
+        )
+        self.token_handler.decode_token.return_value = AccessTokenPayload(
+            username="test",
+            session_id="session-id",
+        )
+        self._set_active_session(expires_at=self.now + timedelta(seconds=120))
+        self.token_handler.get_token_remaining_seconds.return_value = 900
+
+        result = await self.use_case.verify_access_token(
+            params=AuthAuthenticateParams(
+                token=Token(b"valid_token"),
+                required_role=RoleEnum.USER,
+                current_datetime=self.now,
+            ),
+        )
+
+        assert result.valid_for_seconds == 120
 
 
 def auth_session_client() -> AuthSessionClientMetadata:

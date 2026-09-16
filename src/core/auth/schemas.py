@@ -65,6 +65,12 @@ class User(BaseUser):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class AuthVerificationResult:
+    user: User
+    valid_for_seconds: int
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class JwtUser(BaseUser):
     def to_dict(self) -> dict[str, Any]:
         return {"username": self.username, "role": self.role.value}
@@ -283,6 +289,12 @@ class AuthSession:
             now + timedelta(seconds=idle_expires_in_seconds),
             self.absolute_expires_at,
         )
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class AuthAuthenticationResult:
+    user: User
+    session: AuthSession
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

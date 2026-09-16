@@ -59,7 +59,7 @@ class AuthenticationMiddleware(AbstractAuthenticationMiddleware):
         async with self.container() as request_container:
             use_case = await request_container.get(AuthUseCase)
             try:
-                user = await use_case.authenticate(
+                authentication = await use_case.authenticate(
                     params=AuthAuthenticateParams(
                         token=clear_token,
                         required_role=RoleEnum.MODERATOR,
@@ -68,4 +68,7 @@ class AuthenticationMiddleware(AbstractAuthenticationMiddleware):
                 )
             except UnauthorizedError:
                 return anon_result
-        return AuthenticationResult(user=JwtUser.from_user(user), auth=clear_token)
+        return AuthenticationResult(
+            user=JwtUser.from_user(authentication.user),
+            auth=clear_token,
+        )

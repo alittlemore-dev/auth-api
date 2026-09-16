@@ -8,18 +8,22 @@ from core.auth.password_hashers import PasswordHasher
 from core.auth.schemas import (
     AccessTokenPayload,
     AccessTokenResult,
+    AuthAuthenticationResult,
     AuthLoginResult,
     AuthRefreshAccessTokenResult,
+    AuthSession,
     AuthSessionCleanupPolicy,
     AuthSessionClientMetadata,
     AuthSessionCredentials,
     AuthUseCaseConfig,
     JwtUser,
+    User,
 )
 from core.auth.storages import AuthSessionStorage, AuthStorage
 from core.auth.token_handlers import TokenHandler
 from core.auth.types import RawToken, SessionSecret, Token
 from core.auth.use_cases import AuthSessionCleanupUseCase, AuthUseCase
+from core.schemas import Secret
 from infra.config.constants import constants
 from infra.config.settings import Settings
 
@@ -34,6 +38,18 @@ MC4CAQAwBQYDK2VwBCIEIHvAarrKpuBdN5qcsk7uVGwHA3HuzMr0j7ZGvIruVb+B
 -----END PRIVATE KEY-----
 """
 test_current_datetime = datetime(2026, 7, 8, 11, 30, tzinfo=UTC)
+
+
+def mock_authentication_result(user: JwtUser) -> AuthAuthenticationResult:
+    return AuthAuthenticationResult(
+        user=User(
+            username=user.username,
+            role=user.role,
+            password_hash=Secret("password-hash"),
+            is_active=True,
+        ),
+        session=Mock(spec=AuthSession),
+    )
 
 
 class MockAuthProvider(Provider):
@@ -133,7 +149,7 @@ class MockAuthProvider(Provider):
                 expires_in_seconds=2_592_000,
             ),
         )
-        mock.authenticate.return_value = self.user
+        mock.authenticate.return_value = mock_authentication_result(self.user)
         return mock
 
     @provide(scope=Scope.APP)

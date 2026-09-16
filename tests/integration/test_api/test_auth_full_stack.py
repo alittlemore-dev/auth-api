@@ -9,8 +9,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.auth.enums import RoleEnum
+from core.auth.schemas import AccessTokenPayload
 from core.auth.storages import TokenRevocationStorage
+from core.auth.token_handlers import TokenHandler
 from entrypoints.litestar.initializers.main import create_litestar_app
+from infra.auth.token_handlers import PasetoTokenHandler
 from infra.ioc.registry import get_providers
 from infra.postgresql.models import AuthSessionModel, UserModel
 from infra.valkey.storages import ValkeyTokenRevocationStorage
@@ -101,7 +104,75 @@ async def test_login_refresh_logout_revokes_session_and_access(
         ).status_code
         == 401
     )
+    assert auth_client.post("/api/auth/verify", headers=refreshed_bearer).status_code == 401
     assert auth_client.post("/api/auth/refresh", headers={"X-CSRF-Guard": "1"}).status_code == 401
     session.expire_all()
     stored_session = (await session.scalars(select(AuthSessionModel))).one()
     assert stored_session.is_revoked is True
+
+
+async def test_verify_access_token_full_stack(
+    auth_client: TestClient,
+    session: AsyncSession,
+) -> None:
+    missing_token = auth_client.post("/api/auth/verify")
+    assert missing_token.status_code == 401
+    assert missing_token.headers["cache-control"] == "no-store"
+    login = auth_client.post(
+        "/api/auth/login",
+        json={"username": "OWNER", "password": "integration-password"},
+    )
+    assert login.status_code == 200
+    bearer = {"Authorization": f"Bearer {login.json()['accessToken']}"}
+
+    verification = auth_client.post("/api/auth/verify", headers=bearer)
+    assert verification.status_code == 200
+    assert verification.headers["cache-control"] == "no-store"
+    assert verification.json()["username"] == "owner"
+    assert verification.json()["role"] == "owner"
+    assert 0 < verification.json()["validForSeconds"] <= 900
+
+    stored_session = (await session.scalars(select(AuthSessionModel))).one()
+    async with auth_client.app.state.dishka_container() as request_container:
+        token_handler = await request_container.get(TokenHandler)
+    assert isinstance(token_handler, PasetoTokenHandler)
+    expired_token_handler = PasetoTokenHandler(
+        public_key_pem=token_handler.public_key_pem,
+        secret_key_pem=token_handler.secret_key_pem,
+        token_expire_seconds=-1,
+    )
+    expired_token = expired_token_handler.encode_token(
+        AccessTokenPayload(username="owner", session_id=stored_session.id),
+    )
+    expired_verification = auth_client.post(
+        "/api/auth/verify",
+        headers={"Authorization": f"Bearer {expired_token.decode()}"},
+    )
+    assert expired_verification.status_code == 401
+    assert expired_verification.headers["cache-control"] == "no-store"
+
+    stored_session.is_revoked = True
+    await session.commit()
+    assert auth_client.post("/api/auth/verify", headers=bearer).status_code == 401
+    stored_session.is_revoked = False
+    await session.commit()
+
+    user = (await session.scalars(select(UserModel).where(UserModel.username == "owner"))).one()
+    user.role = RoleEnum.USER
+    await session.commit()
+    verification = auth_client.post("/api/auth/verify", headers=bearer)
+    assert verification.status_code == 200
+    assert verification.json()["role"] == "user"
+    user.is_active = False
+    await session.commit()
+    assert auth_client.post("/api/auth/verify", headers=bearer).status_code == 401
+
+    user.is_active = True
+    user.role = RoleEnum.OWNER
+    await session.commit()
+    logout = auth_client.post(
+        "/api/auth/logout",
+        headers={**bearer, "X-CSRF-Guard": "1"},
+    )
+    assert logout.status_code == 200
+    assert auth_client.post("/api/auth/verify", headers=bearer).status_code == 401
