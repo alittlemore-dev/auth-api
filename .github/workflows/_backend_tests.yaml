@@ -1,0 +1,41 @@
+name: Backend tests
+
+on:
+  workflow_call:
+
+jobs:
+  backend-tests:
+    name: Backend tests
+    timeout-minutes: 60
+    runs-on: "ubuntu-latest"
+    defaults:
+      run:
+        shell: bash
+    services:
+      postgres:
+        image: postgres:18.4-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: auth_api_database_test
+        options: >-
+          --health-cmd "pg_isready -U postgres -d auth_api_database_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 55434:5432
+    steps:
+      - uses: actions/checkout@v7
+      - name: "Set up Python"
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: "pyproject.toml"
+      - name: "Install UV"
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          cache-suffix: "backend-tests"
+      - name: "Run backend tests with coverage"
+        run: make tests-coverage
+      - name: "Build service image"
+        run: make build

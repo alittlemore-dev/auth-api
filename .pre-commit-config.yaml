@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: make-quality
+        name: Quality check
+        entry: make quality
+        language: system
+        pass_filenames: false
+        files: ^(src|tests)/.*\.py$
