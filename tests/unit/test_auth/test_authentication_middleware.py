@@ -2,6 +2,8 @@
 from unittest.mock import Mock
 
 import pytest
+from backend_sdk import Principal
+from backend_sdk import RoleEnum as SdkRoleEnum
 from litestar.middleware import AuthenticationResult
 
 from core.auth.enums import RoleEnum
@@ -9,7 +11,6 @@ from core.auth.schemas import (
     AuthAuthenticateParams,
     AuthAuthenticationResult,
     AuthSession,
-    JwtUser,
 )
 from core.auth.types import Token
 from entrypoints.litestar.middlewares.auth import AuthenticationMiddleware
@@ -36,13 +37,13 @@ class TestAuthenticationMiddleware(ContainerTestCase):
         connection_mock = Mock()
         connection_mock.headers = {}
         result = await self.middleware.authenticate_request(connection=connection_mock)
-        assert result == AuthenticationResult(user=JwtUser.anonymous(), auth=None)
+        assert result == AuthenticationResult(user=Principal.anonymous(), auth=None)
 
     async def test_authenticate_token_not_startswith_prefix(self) -> None:
         connection_mock = Mock()
         connection_mock.headers = {"Authorization": "INVALID token"}
         result = await self.middleware.authenticate_request(connection=connection_mock)
-        assert result == AuthenticationResult(user=JwtUser.anonymous(), auth=None)
+        assert result == AuthenticationResult(user=Principal.anonymous(), auth=None)
 
     async def test_authenticate(self) -> None:
         self.use_case.authenticate.return_value = AuthAuthenticationResult(
@@ -53,7 +54,7 @@ class TestAuthenticationMiddleware(ContainerTestCase):
         connection_mock.headers = {"Authorization": "Bearer token"}
         result = await self.middleware.authenticate_request(connection=connection_mock)
         assert result == AuthenticationResult(
-            user=self.factory.core.jwt_user(username="test", role=RoleEnum.MODERATOR),
+            user=Principal(username="test", role=SdkRoleEnum.MODERATOR),
             auth=Token(b"token"),
         )
         self.use_case.authenticate.assert_called_once_with(

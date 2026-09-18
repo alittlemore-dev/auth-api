@@ -1,6 +1,8 @@
 from collections.abc import Sequence
 from datetime import datetime
 
+from backend_sdk import Principal
+from backend_sdk import RoleEnum as SdkRoleEnum
 from dishka import AsyncContainer
 from litestar.connection import ASGIConnection
 from litestar.middleware import (
@@ -11,7 +13,7 @@ from litestar.types import ASGIApp, Method, Scopes
 
 from core.auth.enums import RoleEnum
 from core.auth.exceptions import UnauthorizedError
-from core.auth.schemas import AuthAuthenticateParams, JwtUser
+from core.auth.schemas import AuthAuthenticateParams
 from core.auth.types import Token
 from core.auth.use_cases import AuthUseCase
 
@@ -51,7 +53,7 @@ class AuthenticationMiddleware(AbstractAuthenticationMiddleware):
         self.container = container
 
     async def authenticate_request(self, connection: ASGIConnection) -> AuthenticationResult:
-        anon_result = AuthenticationResult(user=JwtUser.anonymous(), auth=None)
+        anon_result = AuthenticationResult(user=Principal.anonymous(), auth=None)
         token: str | None = connection.headers.get(self.token_header_name)
         if not token or not token.startswith(self.token_prefix):
             return anon_result
@@ -69,6 +71,9 @@ class AuthenticationMiddleware(AbstractAuthenticationMiddleware):
             except UnauthorizedError:
                 return anon_result
         return AuthenticationResult(
-            user=JwtUser.from_user(authentication.user),
+            user=Principal(
+                username=authentication.user.username,
+                role=SdkRoleEnum(authentication.user.role.value),
+            ),
             auth=clear_token,
         )

@@ -385,7 +385,7 @@ class TestAdminAccountsAPI(ApiTestCase):
 
         response = self.api.get_admin_accounts()
 
-        self.asserts.status(response=response, expected_status=codes.UNAUTHORIZED)
+        self.asserts.status(response=response, expected_status=codes.FORBIDDEN)
         self.use_case.list_accounts.assert_not_called()
 
 

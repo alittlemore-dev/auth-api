@@ -13,7 +13,6 @@ from core.auth.schemas import (
     JwtUser,
 )
 from entrypoints.litestar.api.admin_tools.endpoints import AdminToolsApiController
-from entrypoints.litestar.guards import team_manager_guard
 from tests.test_cases import ApiTestCase
 
 CURRENT_DATETIME = datetime(2026, 7, 8, 11, 30, tzinfo=UTC)
@@ -106,12 +105,12 @@ class TestNonTeamManagerAdminToolsAuthSessionsAccess(ApiTestCase):
     def test_moderator_cannot_get_auth_sessions_status(self) -> None:
         response = self.api.get_admin_tools_auth_sessions()
 
-        self.asserts.status(response=response, expected_status=codes.UNAUTHORIZED)
+        self.asserts.status(response=response, expected_status=codes.FORBIDDEN)
 
     def test_moderator_cannot_prune_auth_sessions(self) -> None:
         response = self.api.post_admin_tools_auth_sessions_prune()
 
-        self.asserts.status(response=response, expected_status=codes.UNAUTHORIZED)
+        self.asserts.status(response=response, expected_status=codes.FORBIDDEN)
 
 
 class TestAnonymousAdminToolsAuthSessionsAccess(ApiTestCase):
@@ -122,9 +121,6 @@ class TestAnonymousAdminToolsAuthSessionsAccess(ApiTestCase):
 
 
 class TestAdminToolsAuthSessionsRouteMetadata:
-    def test_controller_uses_team_manager_guard(self) -> None:
-        assert AdminToolsApiController.guards == [team_manager_guard]
-
     def test_auth_session_tool_handlers_are_not_cached(self) -> None:
         assert AdminToolsApiController.get_auth_sessions_status.cache is False
         assert AdminToolsApiController.prune_auth_sessions.cache is False

@@ -1,8 +1,8 @@
+from backend_sdk import Principal
 from dishka.integrations.litestar import DishkaRouter
 from litestar import Controller, Request, get
 from litestar.datastructures import State
 
-from core.auth.schemas import JwtUser
 from core.auth.types import Token
 from entrypoints.litestar.api.account.schemas import GetBaseCurrentUserAccountResponseSchema
 
@@ -18,9 +18,9 @@ class AccountApiController(Controller):
     )
     async def get_base_current_user_account(
         self,
-        request: Request[JwtUser, Token | None, State],
+        request: Request[Principal, Token | None, State],
     ) -> GetBaseCurrentUserAccountResponseSchema:
-        return GetBaseCurrentUserAccountResponseSchema.from_domain_schema(schema=request.user)
+        return GetBaseCurrentUserAccountResponseSchema.from_principal(principal=request.user)
 
 
 api_router = DishkaRouter("", route_handlers=[AccountApiController])

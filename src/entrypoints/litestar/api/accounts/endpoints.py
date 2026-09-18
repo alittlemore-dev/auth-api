@@ -1,6 +1,8 @@
 from datetime import datetime
 from typing import Annotated
 
+from backend_sdk import Principal, RoleEnum
+from backend_sdk.integrations.litestar import RequireRole
 from dishka import FromDishka
 from dishka.integrations.litestar import DishkaRouter
 from litestar import Controller, Request, delete, get, post, put, status_codes
@@ -18,7 +20,6 @@ from core.account.schemas import (
     ManagedAccountTargetOperationParams,
 )
 from core.account.use_cases import AccountsUseCase
-from core.auth.schemas import JwtUser
 from core.auth.types import Token
 from entrypoints.litestar.api.accounts.dependencies import (
     provide_current_session_id,
@@ -35,13 +36,12 @@ from entrypoints.litestar.api.accounts.schemas import (
 )
 from entrypoints.litestar.api.openapi import OPENAPI_PASSWORD_EXAMPLE
 from entrypoints.litestar.api.parameters import SessionIdPath, UsernamePath, api_json_body
-from entrypoints.litestar.guards import team_manager_guard
 
 
 class AdminAccountsApiController(Controller):
     path = "/accounts"
     tags = ["admin accounts"]
-    guards = [team_manager_guard]
+    guards = [RequireRole(RoleEnum.ADMIN)]
 
     @get(
         "",
@@ -81,7 +81,7 @@ class AdminAccountsApiController(Controller):
                 ),
             ),
         ],
-        request: Request[JwtUser, Token | None, State],
+        request: Request[Principal, Token | None, State],
         use_case: FromDishka[AccountsUseCase],
     ) -> ManagedAccountResponseSchema:
         account = await use_case.create_account(
@@ -118,7 +118,7 @@ class AdminAccountsApiController(Controller):
     async def list_account_sessions(
         self,
         username: UsernamePath,
-        request: Request[JwtUser, Token | None, State],
+        request: Request[Principal, Token | None, State],
         current_session_id: NamedDependency[str],
         current_datetime: FromDishka[datetime],
         use_case: FromDishka[AccountsUseCase],
@@ -146,7 +146,7 @@ class AdminAccountsApiController(Controller):
         self,
         username: UsernamePath,
         session_id: SessionIdPath,
-        request: Request[JwtUser, Token | None, State],
+        request: Request[Principal, Token | None, State],
         current_session_id: NamedDependency[str],
         use_case: FromDishka[AccountsUseCase],
     ) -> ManagedAccountSessionRevocationResponseSchema:
@@ -172,7 +172,7 @@ class AdminAccountsApiController(Controller):
     async def revoke_all_account_sessions(
         self,
         username: UsernamePath,
-        request: Request[JwtUser, Token | None, State],
+        request: Request[Principal, Token | None, State],
         current_session_id: NamedDependency[str],
         current_datetime: FromDishka[datetime],
         use_case: FromDishka[AccountsUseCase],
@@ -199,7 +199,7 @@ class AdminAccountsApiController(Controller):
     async def revoke_other_account_sessions(
         self,
         username: UsernamePath,
-        request: Request[JwtUser, Token | None, State],
+        request: Request[Principal, Token | None, State],
         current_session_id: NamedDependency[str],
         use_case: FromDishka[AccountsUseCase],
     ) -> ManagedAccountSessionRevocationResponseSchema:
@@ -229,7 +229,7 @@ class AdminAccountsApiController(Controller):
                 examples=({"role": "moderator"},),
             ),
         ],
-        request: Request[JwtUser, Token | None, State],
+        request: Request[Principal, Token | None, State],
         use_case: FromDishka[AccountsUseCase],
     ) -> ManagedAccountResponseSchema:
         account = await use_case.update_role(
@@ -258,7 +258,7 @@ class AdminAccountsApiController(Controller):
                 examples=({"password": OPENAPI_PASSWORD_EXAMPLE},),
             ),
         ],
-        request: Request[JwtUser, Token | None, State],
+        request: Request[Principal, Token | None, State],
         use_case: FromDishka[AccountsUseCase],
     ) -> ManagedAccountResponseSchema:
         account = await use_case.update_password(
@@ -279,7 +279,7 @@ class AdminAccountsApiController(Controller):
     async def activate_account(
         self,
         username: UsernamePath,
-        request: Request[JwtUser, Token | None, State],
+        request: Request[Principal, Token | None, State],
         use_case: FromDishka[AccountsUseCase],
     ) -> ManagedAccountResponseSchema:
         account = await use_case.activate_account(
@@ -299,7 +299,7 @@ class AdminAccountsApiController(Controller):
     async def deactivate_account(
         self,
         username: UsernamePath,
-        request: Request[JwtUser, Token | None, State],
+        request: Request[Principal, Token | None, State],
         use_case: FromDishka[AccountsUseCase],
     ) -> ManagedAccountResponseSchema:
         account = await use_case.deactivate_account(
@@ -319,7 +319,7 @@ class AdminAccountsApiController(Controller):
     async def delete_account(
         self,
         username: UsernamePath,
-        request: Request[JwtUser, Token | None, State],
+        request: Request[Principal, Token | None, State],
         use_case: FromDishka[AccountsUseCase],
     ) -> None:
         await use_case.delete_account(

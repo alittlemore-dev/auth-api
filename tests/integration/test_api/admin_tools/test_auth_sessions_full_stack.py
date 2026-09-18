@@ -3,6 +3,8 @@ from collections.abc import AsyncGenerator
 from datetime import UTC, datetime, timedelta
 
 import pytest_asyncio
+from backend_sdk import Principal
+from backend_sdk import RoleEnum as SdkRoleEnum
 from dishka import make_async_container
 from litestar.connection import ASGIConnection
 from litestar.middleware import (
@@ -16,7 +18,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.auth.enums import AuthSessionAuthMethodEnum, AuthSessionDeviceTypeEnum, RoleEnum
-from core.auth.schemas import AuthSessionClientMetadata, AuthSessionCreate, JwtUser
+from core.auth.schemas import AuthSessionClientMetadata, AuthSessionCreate
 from core.auth.types import SessionSecretHash, Token
 from entrypoints.litestar.initializers.main import create_litestar_app
 from infra.ioc.registry import get_providers
@@ -37,7 +39,7 @@ class IntegrationOwnerAuthenticationMiddleware(AbstractAuthenticationMiddleware)
     async def authenticate_request(self, connection: ASGIConnection) -> AuthenticationResult:
         _ = connection
         return AuthenticationResult(
-            user=JwtUser(username="owner", role=RoleEnum.OWNER),
+            user=Principal(username="owner", role=SdkRoleEnum.OWNER),
             auth=Token(b"integration-owner"),
         )
 

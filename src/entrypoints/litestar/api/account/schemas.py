@@ -1,9 +1,9 @@
 from typing import Annotated, Self
 
+from backend_sdk import Principal
 from pydantic import Field
 
 from core.auth.enums import RoleEnum
-from core.auth.schemas import BaseUser
 from entrypoints.litestar.api.schemas import CamelCaseSchema
 
 
@@ -26,8 +26,8 @@ class GetBaseCurrentUserAccountResponseSchema(CamelCaseSchema):
     ]
 
     @classmethod
-    def from_domain_schema(cls, *, schema: BaseUser) -> Self:
+    def from_principal(cls, *, principal: Principal) -> Self:
         return cls(
-            username=schema.username,
-            role=schema.role,
+            username=principal.username,
+            role=RoleEnum.from_value(principal.role.value),
         )
