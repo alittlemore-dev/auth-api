@@ -68,13 +68,6 @@ class AppSettings(ProjectBaseSettings):
         return f"{self.base_url}/{path.removeprefix('/')}"
 
 
-class OwnerSettings(ProjectBaseSettings):
-    model_config = SettingsConfigDict(env_prefix="OWNER_")
-
-    init_login: str
-    init_password: SecretStrExtended
-
-
 class AuthSettings(ProjectBaseSettings):
     model_config = SettingsConfigDict(env_prefix="AUTH_")
 
@@ -115,7 +108,6 @@ class Settings:
     app: AppSettings
     auth: AuthSettings
     database: DatabaseSettings
-    owner: OwnerSettings
     sentry: SentrySettings
     taskiq: TaskiqSettings
     valkey: ValkeySettings
@@ -124,7 +116,6 @@ class Settings:
         self.app = AppSettings()
         self.auth = AuthSettings()
         self.database = DatabaseSettings()
-        self.owner = OwnerSettings()
         self.sentry = SentrySettings()
         self.taskiq = TaskiqSettings()
         self.valkey = ValkeySettings()

@@ -26,7 +26,6 @@ load_runtime_secrets() {
         "AUTH_PRIVATE_KEY"
         "AUTH_PUBLIC_KEY"
         "DB_PASSWORD"
-        "OWNER_INIT_PASSWORD"
         "SENTRY_DSN"
     )
     local variable_name

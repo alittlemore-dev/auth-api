@@ -1,12 +1,27 @@
-from argon2 import PasswordHasher
-from sqlalchemy import Boolean, Column, MetaData, String, Table, create_engine, inspect, select
+import pytest
+from sqlalchemy import (
+    Boolean,
+    Column,
+    MetaData,
+    String,
+    Table,
+    create_engine,
+    func,
+    inspect,
+    select,
+)
 from sqlalchemy.dialects.postgresql.base import PGInspector
 
 from infra.config.settings import Settings
 from infra.postgresql.utils import downgrade, migrate
 
 
-def test_initial_schema_owner_and_upgrade_downgrade_roundtrip(test_settings: Settings) -> None:
+def test_initial_schema_has_no_users_and_supports_upgrade_downgrade_roundtrip(
+    test_settings: Settings,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OWNER_INIT_LOGIN", "legacy-owner")
+    monkeypatch.setenv("OWNER_INIT_PASSWORD", "legacy-password")
     engine = create_engine(test_settings.database.url.get_secret_value())
     owner_table = Table(
         "auth__user_model",
@@ -29,13 +44,9 @@ def test_initial_schema_owner_and_upgrade_downgrade_roundtrip(test_settings: Set
                     "auth__auth_session_model",
                 }
                 assert {item["name"] for item in inspector.get_enums()} == enum_names
-                owner = connection.execute(select(owner_table)).mappings().one()
-                assert owner["username"] == test_settings.owner.init_login
-                assert owner["role"] == "OWNER"
-                assert owner["is_active"] is True
-                assert PasswordHasher().verify(
-                    owner["password_hash"],
-                    test_settings.owner.init_password.get_secret_value(),
+                assert (
+                    connection.execute(select(func.count()).select_from(owner_table)).scalar_one()
+                    == 0
                 )
             migrate(revision="head")
             downgrade(revision="base")
