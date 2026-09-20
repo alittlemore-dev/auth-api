@@ -2,13 +2,16 @@ from unittest.mock import Mock
 
 import pytest_asyncio
 
-from core.account.clients import AccountAvatarClient, AccountAvatarProcessor
+from core.account.clients import (
+    AccountAvatarClient,
+    AccountAvatarProcessor,
+)
 from core.account.enums import GenderEnum
 from core.account.schemas import CurrentAccountUpdateParams
 from core.account.storages import CurrentAccountStorage
 from core.account.use_cases import CurrentAccountUseCase
-from core.generators import HexUuidIdGenerator
 from core.schemas import UNSET, Secret
+from infra.post_commit_actions import RollbackActions
 from tests.test_cases import TestCase
 
 
@@ -20,7 +23,7 @@ class TestCurrentAccountUseCase(TestCase):
             storage=self.storage,
             avatar_client=Mock(spec=AccountAvatarClient),
             avatar_processor=Mock(spec=AccountAvatarProcessor),
-            id_generator=HexUuidIdGenerator(generator=lambda: "a" * 32),
+            rollback_actions=RollbackActions(actions=[]),
         )
 
     async def test_gets_account_by_authenticated_username(self) -> None:

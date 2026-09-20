@@ -6,6 +6,11 @@ from core.account.schemas import CurrentAccount
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class AvatarOrphanCleanupUseCaseConfig:
+    retention_seconds: int
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class AccountAvatarUpload:
     content: bytes
     declared_mime_type: str

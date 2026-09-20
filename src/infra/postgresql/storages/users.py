@@ -14,7 +14,7 @@ from core.account.storages import CurrentAccountStorage, ManagedAccountStorage
 from core.auth.enums import RoleEnum
 from core.auth.exceptions import UserNotFoundError
 from core.auth.schemas import User
-from core.schemas import UnsetType
+from core.schemas import UNSET
 from infra.postgresql.models import UserModel
 
 MANAGED_ACCOUNT_ROLES = (RoleEnum.OWNER, RoleEnum.ADMIN, RoleEnum.MODERATOR)
@@ -45,13 +45,13 @@ class UserAccountDatabaseStorage(ManagedAccountStorage, CurrentAccountStorage):
         params: CurrentAccountUpdateParams,
     ) -> CurrentAccount:
         values: dict[str, object] = {}
-        if not isinstance(params.first_name, UnsetType):
+        if params.first_name is not UNSET:
             values["first_name"] = params.first_name
-        if not isinstance(params.last_name, UnsetType):
+        if params.last_name is not UNSET:
             values["last_name"] = params.last_name
-        if not isinstance(params.middle_name, UnsetType):
+        if params.middle_name is not UNSET:
             values["middle_name"] = params.middle_name
-        if not isinstance(params.gender, UnsetType):
+        if params.gender is not UNSET:
             values["gender"] = params.gender
         statement = (
             update(UserModel)

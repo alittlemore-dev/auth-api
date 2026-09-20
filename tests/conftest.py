@@ -15,11 +15,6 @@ def global_random_uuid() -> uuid.UUID:
     return uuid.uuid4()
 
 
-@pytest.fixture
-def global_random_hex_uuid(global_random_uuid: uuid.UUID) -> str:
-    return global_random_uuid.hex
-
-
 @pytest.fixture(scope="session")
 def test_settings(worker_id: str) -> Generator[Settings]:
     original_database_name = settings.database.name

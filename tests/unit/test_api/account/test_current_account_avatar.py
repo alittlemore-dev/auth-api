@@ -42,6 +42,7 @@ class TestCurrentAccountAvatarAPI(ApiTestCase):
         assert response.headers["Cache-Control"] == "no-store"
         assert response.json()["hasAvatar"] is True
         call = self.use_case.replace_avatar.call_args
+        assert set(call.kwargs) == {"username", "upload"}
         assert call.kwargs["username"] == "test"
         assert call.kwargs["upload"].content == b"png-content"
         assert call.kwargs["upload"].declared_mime_type == "image/png"

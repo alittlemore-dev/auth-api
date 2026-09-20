@@ -1,13 +1,12 @@
+import hashlib
 from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Self
 
 
+@dataclass(frozen=True, slots=True)
 class UnsetType:
-    __slots__ = ()
-
-    def __repr__(self) -> str:
-        return "UNSET"
+    pass
 
 
 UNSET = UnsetType()
@@ -19,6 +18,9 @@ class Secret[T]:
 
     def get_secret_value(self) -> T:
         return self.__value
+
+    def sha256_digest(self: Secret[str]) -> bytes:
+        return hashlib.sha256(self.__value.encode()).digest()
 
     def __str__(self) -> str:
         return "**********"

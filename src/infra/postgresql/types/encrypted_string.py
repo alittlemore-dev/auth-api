@@ -1,4 +1,3 @@
-import hashlib
 from base64 import urlsafe_b64encode
 from collections.abc import Callable
 
@@ -8,6 +7,7 @@ from sqlalchemy.engine.interfaces import Dialect
 from sqlalchemy.types import TypeDecorator
 
 from core.schemas import Secret
+from infra.config.settings import settings
 from infra.postgresql.exceptions import EncryptedValueError
 
 _INVALID_DATABASE_VALUE_MESSAGE = "Encrypted database value is invalid"
@@ -17,17 +17,17 @@ _INVALID_BOUND_VALUE_MESSAGE = "EncryptedString accepts Secret values only"
 class EncryptedString[T](TypeDecorator[Secret[T]]):
     impl = Text
     cache_ok = True
+    _fernet = Fernet(
+        urlsafe_b64encode(settings.app.secret_key.to_domain_secret().sha256_digest()),
+    )
 
     def __init__(
         self,
         *,
-        secret_key: Secret[str],
         serialize: Callable[[T], str],
         deserialize: Callable[[str], T],
     ) -> None:
         super().__init__()
-        digest = hashlib.sha256(secret_key.get_secret_value().encode()).digest()
-        self._fernet = Fernet(urlsafe_b64encode(digest))
         self._serialize = serialize
         self._deserialize = deserialize
 

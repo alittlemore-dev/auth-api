@@ -1,8 +1,14 @@
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
+from core.account.clients import (
+    RollbackAction,
+)
+from core.account.clients import (
+    RollbackActions as AbstractRollbackActions,
+)
+
 type PostCommitAction = Callable[[], Awaitable[None]]
-type RollbackAction = Callable[[], Awaitable[None]]
 
 
 @dataclass(kw_only=True, slots=True)
@@ -18,7 +24,7 @@ class PostCommitActions:
 
 
 @dataclass(kw_only=True, slots=True)
-class RollbackActions:
+class RollbackActions(AbstractRollbackActions):
     actions: list[RollbackAction]
 
     def add(self, *, action: RollbackAction) -> None:

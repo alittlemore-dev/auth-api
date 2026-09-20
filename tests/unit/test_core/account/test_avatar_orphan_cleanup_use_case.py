@@ -1,7 +1,10 @@
 from datetime import UTC, datetime, timedelta
 from unittest.mock import Mock, call
 
-from core.account.avatar_schemas import AvatarOrphanCleanupResult
+from core.account.avatar_schemas import (
+    AvatarOrphanCleanupResult,
+    AvatarOrphanCleanupUseCaseConfig,
+)
 from core.account.clients import AccountAvatarClient
 from core.account.exceptions import AccountAvatarStorageError
 from core.account.storages import CurrentAccountStorage
@@ -23,12 +26,16 @@ class TestAvatarOrphanCleanupUseCase(TestCase):
             "avatars/orphan-2.webp",
         )
         client.delete.side_effect = [None, AccountAvatarStorageError]
-        use_case = AvatarOrphanCleanupUseCase(storage=storage, client=client)
+        use_case = AvatarOrphanCleanupUseCase(
+            storage=storage,
+            client=client,
+            config=AvatarOrphanCleanupUseCaseConfig(retention_seconds=6 * 60 * 60),
+        )
 
         result = await use_case.prune(current_datetime=now)
 
         client.list_objects_older_than.assert_awaited_once_with(
-            cutoff=now - timedelta(hours=24),
+            cutoff=now - timedelta(hours=6),
         )
         assert client.delete.await_args_list == [
             call(object_name="avatars/orphan-1.webp"),

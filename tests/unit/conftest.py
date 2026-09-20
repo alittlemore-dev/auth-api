@@ -46,12 +46,11 @@ async def container(
     jwt_admin: JwtUser,
     raw_token: RawToken,
     global_random_uuid: uuid.UUID,
-    global_random_hex_uuid: str,
 ) -> AsyncGenerator[AsyncContainer]:
     container = make_async_container(
         LitestarProvider(),
         DatabaseProvider(),
-        MockGeneralProvider(uuid_=global_random_uuid, hex_uuid=global_random_hex_uuid),
+        MockGeneralProvider(uuid_=global_random_uuid),
         MockUserAccountProvider(),
         MockAuthProvider(settings=test_settings, user=jwt_admin, raw_token=raw_token),
         MockHealthcheckProvider(),

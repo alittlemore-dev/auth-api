@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from math import ceil
-from typing import Self
+from typing import Self, cast
 
 from core.account.enums import GenderEnum, ManagedAccountActionEnum
 from core.account.exceptions import (
@@ -50,11 +50,11 @@ class CurrentAccountUpdateParams:
     def _normalize_name(
         value: Secret[str] | UnsetType | None,
     ) -> Secret[str] | UnsetType | None:
-        if isinstance(value, UnsetType):
-            return value
+        if value is UNSET:
+            return UNSET
         if value is None:
             return None
-        normalized = value.get_secret_value().strip()
+        normalized = cast("Secret[str]", value).get_secret_value().strip()
         return Secret(normalized) if normalized else None
 
 

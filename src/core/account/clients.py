@@ -1,8 +1,10 @@
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from datetime import datetime
 
 from core.account.avatar_schemas import AccountAvatarUpload, ProcessedAccountAvatar
+
+type RollbackAction = Callable[[], Awaitable[None]]
 
 
 class AccountAvatarProcessor(ABC):
@@ -29,7 +31,7 @@ class AccountAvatarClient(ABC):
         raise NotImplementedError
 
 
-class AccountAvatarRollbackRegistrar(ABC):
+class RollbackActions(ABC):
     @abstractmethod
-    def register_new_object(self, *, object_name: str) -> None:
+    def add(self, *, action: RollbackAction) -> None:
         raise NotImplementedError

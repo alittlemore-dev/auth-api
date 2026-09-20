@@ -1,17 +1,20 @@
+import uuid
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from functools import partial
 
 from core.account.avatar_schemas import (
     AccountAvatarUpload,
     AvatarOrphanCleanupResult,
+    AvatarOrphanCleanupUseCaseConfig,
     CurrentAccountAvatarContent,
     CurrentAccountAvatarMutationResult,
 )
 from core.account.clients import (
     AccountAvatarClient,
     AccountAvatarProcessor,
-    AccountAvatarRollbackRegistrar,
+    RollbackActions,
 )
 from core.account.enums import ManagedAccountActionEnum
 from core.account.exceptions import (
@@ -43,18 +46,17 @@ from core.auth.enums import RoleEnum
 from core.auth.exceptions import UserNotFoundError
 from core.auth.password_hashers import PasswordHasher
 from core.auth.storages import AuthSessionStorage
-from core.generators import HexUuidIdGenerator
 
 
 @dataclass(kw_only=True, slots=True, frozen=True)
 class AvatarOrphanCleanupUseCase:
     storage: CurrentAccountStorage
     client: AccountAvatarClient
-    retention_seconds: int = 24 * 60 * 60
+    config: AvatarOrphanCleanupUseCaseConfig
 
     async def prune(self, *, current_datetime: datetime) -> AvatarOrphanCleanupResult:
         object_names = await self.client.list_objects_older_than(
-            cutoff=current_datetime - timedelta(seconds=self.retention_seconds),
+            cutoff=current_datetime - timedelta(seconds=self.config.retention_seconds),
         )
         referenced_names = await self.storage.list_avatar_object_names()
         referenced_count = 0
@@ -83,7 +85,7 @@ class CurrentAccountUseCase:
     storage: CurrentAccountStorage
     avatar_client: AccountAvatarClient
     avatar_processor: AccountAvatarProcessor
-    id_generator: HexUuidIdGenerator
+    rollback_actions: RollbackActions
 
     async def get_account(self, *, username: str) -> CurrentAccount:
         return await self.storage.get_current_account(username=username)
@@ -104,16 +106,17 @@ class CurrentAccountUseCase:
         *,
         username: str,
         upload: AccountAvatarUpload,
-        rollback_registrar: AccountAvatarRollbackRegistrar,
     ) -> CurrentAccountAvatarMutationResult:
         current = await self.storage.get_current_account(username=username)
         processed = self.avatar_processor.process(upload=upload)
-        object_name = f"avatars/{self.id_generator.get_next()}.webp"
+        object_name = f"avatars/{uuid.uuid4().hex}.webp"
         await self.avatar_client.upload(
             object_name=object_name,
             content=processed.content,
         )
-        rollback_registrar.register_new_object(object_name=object_name)
+        self.rollback_actions.add(
+            action=partial(self.avatar_client.delete, object_name=object_name),
+        )
         updated = await self.storage.update_avatar_object_name(
             username=username,
             object_name=object_name,

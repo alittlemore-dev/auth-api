@@ -12,7 +12,6 @@ from core.auth.enums import AuthSessionAuthMethodEnum, AuthSessionDeviceTypeEnum
 from core.auth.schemas import AuthSession, AuthSessionClientMetadata, User
 from core.auth.types import SessionSecretHash
 from core.schemas import Secret
-from infra.config.settings import settings
 from infra.postgresql.models.base import BaseModel, TableArgs
 from infra.postgresql.models.mixins.ids import HexUuidIDMixin
 from infra.postgresql.types import EncryptedString
@@ -38,7 +37,6 @@ class UserModel(BaseModel):
     )
     first_name: Mapped[Secret[str] | None] = mapped_column(
         EncryptedString[str](
-            secret_key=settings.app.secret_key.to_domain_secret(),
             serialize=str,
             deserialize=str,
         ),
@@ -47,7 +45,6 @@ class UserModel(BaseModel):
     )
     last_name: Mapped[Secret[str] | None] = mapped_column(
         EncryptedString[str](
-            secret_key=settings.app.secret_key.to_domain_secret(),
             serialize=str,
             deserialize=str,
         ),
@@ -56,7 +53,6 @@ class UserModel(BaseModel):
     )
     middle_name: Mapped[Secret[str] | None] = mapped_column(
         EncryptedString[str](
-            secret_key=settings.app.secret_key.to_domain_secret(),
             serialize=str,
             deserialize=str,
         ),
@@ -65,7 +61,6 @@ class UserModel(BaseModel):
     )
     gender: Mapped[Secret[GenderEnum] | None] = mapped_column(
         EncryptedString[GenderEnum](
-            secret_key=settings.app.secret_key.to_domain_secret(),
             serialize=lambda value: value.value,
             deserialize=GenderEnum.from_value,
         ),

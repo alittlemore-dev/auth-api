@@ -7,7 +7,7 @@ from litestar import Controller, Request, Response, delete, get, patch, put
 from litestar.datastructures import State
 from litestar.response import Stream
 
-from core.account.clients import AccountAvatarClient, AccountAvatarRollbackRegistrar
+from core.account.clients import AccountAvatarClient
 from core.account.use_cases import CurrentAccountUseCase
 from core.auth.exceptions import UnauthorizedError
 from core.auth.types import Token
@@ -75,12 +75,11 @@ class AccountApiController(Controller):
         description="Replace the authenticated user's private avatar.",
         request_max_body_size=constants.account_avatar.max_source_bytes,
     )
-    async def replace_current_account_avatar(  # noqa: PLR0913
+    async def replace_current_account_avatar(
         self,
         request: Request[Principal, Token | None, State],
         use_case: FromDishka[CurrentAccountUseCase],
         avatar_client: FromDishka[AccountAvatarClient],
-        rollback_registrar: FromDishka[AccountAvatarRollbackRegistrar],
         post_commit_actions: FromDishka[PostCommitActions],
         data: Annotated[
             AccountAvatarUploadRequestSchema,
@@ -95,7 +94,6 @@ class AccountApiController(Controller):
         result = await use_case.replace_avatar(
             username=request.user.username,
             upload=await data.to_domain_schema(),
-            rollback_registrar=rollback_registrar,
         )
         register_account_avatar_cleanup(
             old_object_name=result.old_object_name,

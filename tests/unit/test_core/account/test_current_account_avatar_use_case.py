@@ -11,12 +11,11 @@ from core.account.avatar_schemas import (
 from core.account.clients import (
     AccountAvatarClient,
     AccountAvatarProcessor,
-    AccountAvatarRollbackRegistrar,
 )
 from core.account.exceptions import AccountAvatarNotFoundError
 from core.account.storages import CurrentAccountStorage
 from core.account.use_cases import CurrentAccountUseCase
-from core.generators import HexUuidIdGenerator
+from infra.post_commit_actions import RollbackActions
 from tests.test_cases import TestCase
 
 
@@ -27,13 +26,12 @@ class TestCurrentAccountAvatarUseCase(TestCase):
         self.storage = Mock(spec=CurrentAccountStorage)
         self.client = Mock(spec=AccountAvatarClient)
         self.processor = Mock(spec=AccountAvatarProcessor)
-        self.rollback_registrar = Mock(spec=AccountAvatarRollbackRegistrar)
-        self.id_generator = HexUuidIdGenerator(generator=lambda: "a" * 32)
+        self.rollback_actions = RollbackActions(actions=[])
         self.use_case = CurrentAccountUseCase(
             storage=self.storage,
             avatar_client=self.client,
             avatar_processor=self.processor,
-            id_generator=self.id_generator,
+            rollback_actions=self.rollback_actions,
         )
 
     async def test_replaces_avatar_transactionally(self) -> None:
@@ -44,11 +42,9 @@ class TestCurrentAccountAvatarUseCase(TestCase):
         self.storage.get_current_account.return_value = old_account
         self.processor.process.return_value = ProcessedAccountAvatar(content=b"processed")
         self.client.upload = AsyncMock(side_effect=lambda **_kwargs: self.events.append("upload"))
-        self.rollback_registrar.register_new_object.side_effect = lambda **_kwargs: (
-            self.events.append("rollback_registered")
-        )
 
         def update_avatar(**_kwargs: object) -> object:
+            assert len(self.rollback_actions.actions) == 1
             self.events.append("row_updated")
             return new_account
 
@@ -57,26 +53,33 @@ class TestCurrentAccountAvatarUseCase(TestCase):
         result = await self.use_case.replace_avatar(
             username="test",
             upload=AccountAvatarUpload(content=b"source", declared_mime_type="image/png"),
-            rollback_registrar=self.rollback_registrar,
         )
 
-        object_name = f"avatars/{'a' * 32}.webp"
+        object_name = self.client.upload.await_args.kwargs["object_name"]
+        assert object_name.startswith("avatars/")
+        assert object_name.endswith(".webp")
+        assert len(object_name.removeprefix("avatars/").removesuffix(".webp")) == 32
+        assert all(
+            character in "0123456789abcdef"
+            for character in object_name.removeprefix("avatars/").removesuffix(".webp")
+        )
         assert result == CurrentAccountAvatarMutationResult(
             account=new_account,
             old_object_name="avatars/old.webp",
         )
-        assert self.events == ["upload", "rollback_registered", "row_updated"]
+        assert self.events == ["upload", "row_updated"]
         self.client.upload.assert_awaited_once_with(
             object_name=object_name,
             content=b"processed",
-        )
-        self.rollback_registrar.register_new_object.assert_called_once_with(
-            object_name=object_name,
         )
         self.storage.update_avatar_object_name.assert_awaited_once_with(
             username="test",
             object_name=object_name,
         )
+
+        await self.rollback_actions.run()
+
+        self.client.delete.assert_awaited_once_with(object_name=object_name)
 
     async def test_remove_avatar_is_idempotent(self) -> None:
         account = self.factory.core.current_account(avatar_object_name=None)

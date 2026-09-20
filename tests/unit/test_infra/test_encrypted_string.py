@@ -9,10 +9,9 @@ from sqlalchemy.dialects import postgresql
 
 from core.enums import StrEnum
 from core.schemas import Secret
+from infra.config.settings import settings
 from infra.postgresql.exceptions import EncryptedValueError
 from infra.postgresql.types.encrypted_string import EncryptedString
-
-APP_SECRET_KEY = "permanent-app-secret"  # noqa: S105  # nosec B105
 
 
 class LocalGenderEnum(StrEnum):
@@ -26,14 +25,13 @@ def create_encrypted_string[T](
     deserialize: Callable[[str], T] | None = None,
 ) -> EncryptedString[T]:
     return EncryptedString[T](
-        secret_key=Secret(APP_SECRET_KEY),
         serialize=serialize or cast("Callable[[T], str]", str),
         deserialize=deserialize or cast("Callable[[str], T]", str),
     )
 
 
 def create_reference_fernet() -> Fernet:
-    digest = hashlib.sha256(APP_SECRET_KEY.encode()).digest()
+    digest = hashlib.sha256(settings.app.secret_key.get_secret_value().encode()).digest()
     return Fernet(urlsafe_b64encode(digest))
 
 
@@ -130,6 +128,6 @@ class TestEncryptedString:
 
         representation = repr(encrypted)
 
-        assert APP_SECRET_KEY not in representation
+        assert settings.app.secret_key.get_secret_value() not in representation
         assert "serialize" not in representation
         assert "deserialize" not in representation

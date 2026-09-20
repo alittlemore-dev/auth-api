@@ -11,7 +11,6 @@ from core.auth.password_hashers import PasswordHasher
 from core.auth.storages import AuthSessionStorage, AuthStorage
 from core.auth.token_handlers import TokenHandler
 from core.auth.use_cases import AuthSessionCleanupUseCase, AuthUseCase
-from core.generators import HexUuidIdGenerator
 from core.types import IntId
 from infra.healthcheck import ReadinessChecker
 
@@ -26,9 +25,6 @@ class IocContainerHelper:
 
     async def get_random_int(self) -> IntId:
         return await self.container.get(IntId)
-
-    async def get_hex_uuid_id_generator(self) -> HexUuidIdGenerator:
-        return await self.container.get(HexUuidIdGenerator)
 
     async def get_hasher(self) -> Mock:
         hasher = await self.container.get(PasswordHasher)

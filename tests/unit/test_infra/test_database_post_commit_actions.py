@@ -1,3 +1,4 @@
+from functools import partial
 from typing import cast
 from unittest.mock import AsyncMock, Mock
 
@@ -8,7 +9,6 @@ from core.account.clients import AccountAvatarClient
 from core.account.exceptions import AccountAvatarStorageError
 from entrypoints.litestar.api.account import post_commit as account_post_commit
 from entrypoints.litestar.api.account.post_commit import register_account_avatar_cleanup
-from infra.account_avatar_actions import RequestAccountAvatarRollbackRegistrar
 from infra.ioc.prodivers.database_provider import DatabaseProvider
 from infra.post_commit_actions import PostCommitActions, RollbackActions
 from infra.postgresql import meta
@@ -47,16 +47,14 @@ class TestDatabasePostCommitActions:
         )
         monkeypatch.setattr(meta, "sessionmaker", session_factory)
         client = Mock(spec=AccountAvatarClient)
-        registrar = RequestAccountAvatarRollbackRegistrar(
-            client=client,
-            rollback_actions=RollbackActions(actions=[]),
+        rollback_actions = RollbackActions(
+            actions=[partial(client.delete, object_name="avatars/new-private-name.webp")],
         )
-        registrar.register_new_object(object_name="avatars/new-private-name.webp")
         provider = DatabaseProvider()
         generator = provider.provide_async_session(
             transaction_state=DatabaseTransactionState(rollback_required=False),
             post_commit_actions=PostCommitActions(actions=[]),
-            rollback_actions=registrar.rollback_actions,
+            rollback_actions=rollback_actions,
         )
 
         assert await anext(generator) is session
