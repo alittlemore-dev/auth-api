@@ -1,9 +1,14 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from math import ceil
 from typing import Self, cast
 
-from core.account.enums import GenderEnum, ManagedAccountActionEnum
+from core.account.enums import (
+    AccountLanguageEnum,
+    AccountThemeEnum,
+    GenderEnum,
+    ManagedAccountActionEnum,
+)
 from core.account.exceptions import (
     ManagedAccountActionForbiddenError,
     SelfAccountActionForbiddenError,
@@ -21,6 +26,12 @@ SELF_FORBIDDEN_MANAGED_ACCOUNT_ACTIONS = (
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class AccountSettings:
+    language: AccountLanguageEnum = AccountLanguageEnum.EN
+    theme: AccountThemeEnum = AccountThemeEnum.LIGHT
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class CurrentAccount:
     username: str
     role: RoleEnum
@@ -29,6 +40,7 @@ class CurrentAccount:
     middle_name: Secret[str] | None
     gender: Secret[GenderEnum] | None
     avatar_object_name: str | None
+    settings: AccountSettings = field(default_factory=AccountSettings)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

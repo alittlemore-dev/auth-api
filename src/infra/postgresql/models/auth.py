@@ -1,10 +1,11 @@
 from datetime import datetime
 from typing import Self
 
-from sqlalchemy import Boolean, Enum, ForeignKey, Index, String, UniqueConstraint, func
+from sqlalchemy import Boolean, Enum, ForeignKey, Index, String, UniqueConstraint, func, literal
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column
 from sqlalchemy_dev_utils.mixins.audit import AuditMixin
 from sqlalchemy_dev_utils.types.datetime import UTCDateTime
+from sqlalchemy_dev_utils.types.pydantic import PydanticType
 
 from core.account.enums import GenderEnum
 from core.account.schemas import CurrentAccount, ManagedAccount
@@ -14,10 +15,18 @@ from core.auth.types import SessionSecretHash
 from core.schemas import Secret
 from infra.postgresql.models.base import BaseModel, TableArgs
 from infra.postgresql.models.mixins.ids import HexUuidIDMixin
+from infra.postgresql.schemas import AccountSettingsSchema
 from infra.postgresql.types import EncryptedString
 
 
 class UserModel(BaseModel):
+    settings: Mapped[AccountSettingsSchema] = mapped_column(
+        PydanticType(AccountSettingsSchema),
+        default=AccountSettingsSchema,
+        server_default=literal("{}"),
+        nullable=False,
+    )
+
     username: Mapped[str] = mapped_column(
         String(255),
         doc="Username",
@@ -121,6 +130,7 @@ class UserModel(BaseModel):
             middle_name=self.middle_name,
             gender=self.gender,
             avatar_object_name=self.avatar_object_name,
+            settings=self.settings.to_domain_schema(),
         )
 
     @classmethod

@@ -4,9 +4,9 @@ from litestar.datastructures.upload_file import UploadFile
 from pydantic import ConfigDict, Field, field_validator
 
 from core.account.avatar_schemas import AccountAvatarUpload
-from core.account.enums import GenderEnum
+from core.account.enums import AccountLanguageEnum, AccountThemeEnum, GenderEnum
 from core.account.exceptions import InvalidAccountAvatarError
-from core.account.schemas import CurrentAccount, CurrentAccountUpdateParams
+from core.account.schemas import AccountSettings, CurrentAccount, CurrentAccountUpdateParams
 from core.auth.enums import RoleEnum
 from core.schemas import UNSET, Secret, UnsetType
 from entrypoints.litestar.api.schemas import CamelCaseSchema
@@ -60,6 +60,20 @@ class CurrentAccountUpdateRequestSchema(CamelCaseSchema):
         return Secret(value) if value is not None else None
 
 
+class AccountSettingsSchema(CamelCaseSchema):
+    model_config = ConfigDict(validate_default=True)
+
+    language: AccountLanguageEnum = AccountLanguageEnum.EN
+    theme: AccountThemeEnum = AccountThemeEnum.LIGHT
+
+    def to_domain_schema(self) -> AccountSettings:
+        return AccountSettings(language=self.language, theme=self.theme)
+
+    @classmethod
+    def from_domain_schema(cls, schema: AccountSettings) -> AccountSettingsSchema:
+        return cls(language=schema.language, theme=schema.theme)
+
+
 class CurrentAccountResponseSchema(CamelCaseSchema):
     username: str
     role: RoleEnum
@@ -67,6 +81,7 @@ class CurrentAccountResponseSchema(CamelCaseSchema):
     last_name: str | None
     middle_name: str | None
     gender: GenderEnum | None
+    settings: AccountSettingsSchema
     has_avatar: bool
 
     @classmethod
@@ -76,6 +91,7 @@ class CurrentAccountResponseSchema(CamelCaseSchema):
         schema: CurrentAccount,
     ) -> CurrentAccountResponseSchema:
         return cls.model_construct(
+            settings=AccountSettingsSchema.from_domain_schema(schema.settings),
             username=schema.username,
             role=schema.role,
             first_name=(schema.first_name.get_secret_value() if schema.first_name else None),

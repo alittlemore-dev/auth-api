@@ -18,6 +18,7 @@ from entrypoints.litestar.api.account.responses import (
 )
 from entrypoints.litestar.api.account.schemas import (
     AccountAvatarUploadRequestSchema,
+    AccountSettingsSchema,
     CurrentAccountResponseSchema,
     CurrentAccountUpdateRequestSchema,
 )
@@ -66,6 +67,28 @@ class AccountApiController(Controller):
         account = await use_case.update_account(
             username=request.user.username,
             params=data.to_domain_schema(),
+        )
+        return create_current_account_response(account=account)
+
+    @put("/me/settings", name="replace-current-user-settings-api-handler")
+    async def replace_settings(
+        self,
+        request: Request[Principal, Token | None, State],
+        use_case: FromDishka[CurrentAccountUseCase],
+        data: Annotated[
+            AccountSettingsSchema,
+            api_json_body(
+                title="Account settings replacement",
+                description="Replace all preferences; omitted fields use schema defaults.",
+                examples=({"language": "en", "theme": "light"},),
+            ),
+        ],
+    ) -> Response[CurrentAccountResponseSchema]:
+        if request.auth is None:
+            raise UnauthorizedError
+        account = await use_case.update_settings(
+            username=request.user.username,
+            settings=data.to_domain_schema(),
         )
         return create_current_account_response(account=account)
 

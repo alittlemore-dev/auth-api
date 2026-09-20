@@ -39,6 +39,7 @@ class TestCurrentAccountAPI(ApiTestCase):
             "middleName": None,
             "gender": "male",
             "hasAvatar": True,
+            "settings": {"language": "en", "theme": "light"},
         }
         self.use_case.get_account.assert_called_once_with(username="test")
 
@@ -109,3 +110,43 @@ class TestCurrentAccountAPI(ApiTestCase):
 
     def test_managed_account_contract_does_not_expose_profile_fields(self) -> None:
         assert set(ManagedAccountResponseSchema.model_fields) == {"username", "role", "is_active"}
+
+    def test_replaces_settings(self) -> None:
+        self.use_case.update_settings.return_value = self.factory.core.current_account()
+        response = self.api.client.put(
+            "/api/auth/account/me/settings",
+            json={"language": "ru", "theme": "dark"},
+        )
+        assert response.status_code == codes.OK
+        assert response.headers["Cache-Control"] == "no-store"
+        params = self.use_case.update_settings.call_args.kwargs
+        assert params["username"] == "test"
+        assert params["settings"].language == "ru"
+        assert params["settings"].theme == "dark"
+
+    def test_settings_requires_authentication(self) -> None:
+        response = self.no_auth_api.client.put("/api/auth/account/me/settings", json={})
+        assert response.status_code == codes.UNAUTHORIZED
+
+    def test_settings_rejects_null(self) -> None:
+        response = self.api.client.put("/api/auth/account/me/settings", json={"theme": None})
+        assert response.status_code == codes.BAD_REQUEST
+
+    def test_settings_omitted_fields_use_defaults(self) -> None:
+        self.use_case.update_settings.return_value = self.factory.core.current_account()
+        response = self.api.client.put("/api/auth/account/me/settings", json={"theme": "dark"})
+        assert response.status_code == codes.OK
+        settings = self.use_case.update_settings.call_args.kwargs["settings"]
+        assert settings.language == "en"
+        assert settings.theme == "dark"
+
+    def test_settings_rejects_invalid_values(self) -> None:
+        for data in (
+            {"language": "fr"},
+            {"theme": "system"},
+            {"language": None},
+            {"unknown": True},
+        ):
+            response = self.api.client.put("/api/auth/account/me/settings", json=data)
+            assert response.status_code == codes.BAD_REQUEST
+        self.use_case.update_settings.assert_not_called()

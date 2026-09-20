@@ -81,6 +81,7 @@ async def test_login_refresh_logout_revokes_session_and_access(
         "middleName": None,
         "gender": None,
         "hasAvatar": False,
+        "settings": {"language": "en", "theme": "light"},
     }
     assert (
         auth_client.get("/api/auth/admin/accounts?page=1&pageSize=20", headers=bearer).status_code

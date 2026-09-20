@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.account.exceptions import ManagedAccountNotFoundError
 from core.account.schemas import (
+    AccountSettings,
     CurrentAccount,
     CurrentAccountUpdateParams,
     ManagedAccount,
@@ -16,6 +17,7 @@ from core.auth.exceptions import UserNotFoundError
 from core.auth.schemas import User
 from core.schemas import UNSET
 from infra.postgresql.models import UserModel
+from infra.postgresql.schemas import AccountSettingsSchema
 
 MANAGED_ACCOUNT_ROLES = (RoleEnum.OWNER, RoleEnum.ADMIN, RoleEnum.MODERATOR)
 
@@ -57,6 +59,18 @@ class UserAccountDatabaseStorage(ManagedAccountStorage, CurrentAccountStorage):
             update(UserModel)
             .where(func.lower(UserModel.username) == username.lower())
             .values(**values)
+            .returning(UserModel)
+        )
+        model = await self.session.scalar(statement)
+        if model is None:
+            raise UserNotFoundError
+        return model.to_current_account_schema()
+
+    async def update_settings(self, *, username: str, settings: AccountSettings) -> CurrentAccount:
+        statement = (
+            update(UserModel)
+            .where(func.lower(UserModel.username) == username.lower())
+            .values(settings=AccountSettingsSchema.from_domain_schema(settings))
             .returning(UserModel)
         )
         model = await self.session.scalar(statement)

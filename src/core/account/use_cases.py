@@ -25,6 +25,7 @@ from core.account.exceptions import (
     ManagedAccountActionForbiddenError,
 )
 from core.account.schemas import (
+    AccountSettings,
     CurrentAccount,
     CurrentAccountUpdateParams,
     ManagedAccount,
@@ -100,6 +101,9 @@ class CurrentAccountUseCase:
             username=username,
             params=params.normalized(),
         )
+
+    async def update_settings(self, *, username: str, settings: AccountSettings) -> CurrentAccount:
+        return await self.storage.update_settings(username=username, settings=settings)
 
     async def replace_avatar(
         self,

@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
 from core.account.schemas import (
+    AccountSettings,
     CurrentAccount,
     CurrentAccountUpdateParams,
     ManagedAccount,
@@ -32,6 +33,10 @@ class CurrentAccountStorage(ABC):
         username: str,
         params: CurrentAccountUpdateParams,
     ) -> CurrentAccount:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def update_settings(self, *, username: str, settings: AccountSettings) -> CurrentAccount:
         raise NotImplementedError
 
     @abstractmethod

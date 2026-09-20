@@ -13,3 +13,13 @@ class ManagedAccountActionEnum(StrEnum):
     ACTIVATE = "activate"
     DEACTIVATE = "deactivate"
     DELETE = "delete"
+
+
+class AccountLanguageEnum(StrEnum):
+    EN = "en"
+    RU = "ru"
+
+
+class AccountThemeEnum(StrEnum):
+    LIGHT = "light"
+    DARK = "dark"
