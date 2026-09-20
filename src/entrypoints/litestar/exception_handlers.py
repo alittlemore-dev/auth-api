@@ -18,6 +18,7 @@ from verbose_http_exceptions.ext.litestar.types import LitestarExceptionHandlers
 
 from core.account.exceptions import (
     AccountUsernameAlreadyExistsError,
+    InvalidAccountAvatarError,
     InvalidManagedAccountRoleError,
     ManagedAccountActionForbiddenError,
     SelfAccountActionForbiddenError,
@@ -31,6 +32,7 @@ DOMAIN_ERROR_MAPPING: dict[type[DomainError], type[BaseVerboseHTTPException]] = 
     UnauthorizedError: UnauthorizedHTTPException,
     ForbiddenError: ForbiddenHTTPException,
     AccountUsernameAlreadyExistsError: BadRequestHTTPException,
+    InvalidAccountAvatarError: BadRequestHTTPException,
     InvalidManagedAccountRoleError: BadRequestHTTPException,
     SelfAccountActionForbiddenError: ForbiddenHTTPException,
     ManagedAccountActionForbiddenError: ForbiddenHTTPException,

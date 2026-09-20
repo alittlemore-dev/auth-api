@@ -111,5 +111,20 @@ class APIHelper:
             headers=self._headers_with_cookies(headers=headers, cookies=cookies),
         )
 
-    def get_get_base_current_user_account(self) -> Response:
-        return self.client.get("/api/auth/account/base")
+    def get_current_account(self) -> Response:
+        return self.client.get("/api/auth/account/me")
+
+    def patch_current_account(self, data: dict[str, Any]) -> Response:
+        return self.client.patch("/api/auth/account/me", json=data)
+
+    def put_current_account_avatar(self, *, content: bytes, mime_type: str) -> Response:
+        return self.client.put(
+            "/api/auth/account/me/avatar",
+            files={"file": ("avatar.bin", content, mime_type)},
+        )
+
+    def get_current_account_avatar(self) -> Response:
+        return self.client.get("/api/auth/account/me/avatar")
+
+    def delete_current_account_avatar(self) -> Response:
+        return self.client.delete("/api/auth/account/me/avatar")

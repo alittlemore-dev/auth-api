@@ -7,6 +7,7 @@ from taskiq_redis import RedisAsyncResultBackend
 
 from entrypoints.taskiq import broker as taskiq_broker_module
 from entrypoints.taskiq import worker as taskiq_worker_module
+from entrypoints.taskiq.account import tasks as account_tasks_module
 from entrypoints.taskiq.auth import tasks as auth_tasks_module
 from infra.config.constants import constants
 from infra.config.settings import settings
@@ -49,6 +50,17 @@ class TestTaskiqBrokerConfiguration:
 
 
 class TestTaskiqScheduleConfiguration:
+    def test_account_avatar_orphan_prune_uses_daily_interval(self) -> None:
+        schedule = account_tasks_module.prune_account_avatar_orphans.labels["schedule"]
+
+        assert schedule == [
+            {
+                "schedule_id": "account_avatar_orphan_prune",
+                "interval": settings.taskiq.account_avatar_orphan_prune_interval_seconds,
+            },
+        ]
+        assert "cron" not in schedule[0]
+
     def test_auth_session_prune_uses_interval_schedule_without_cron(self) -> None:
         schedule = auth_tasks_module.prune_expired_auth_sessions.labels["schedule"]
 
@@ -66,6 +78,7 @@ class TestTaskiqScheduleConfiguration:
             for middleware in taskiq_broker_module.broker.middlewares
         )
         assert is_dishka_injected(auth_tasks_module.prune_expired_auth_sessions.original_func)
+        assert is_dishka_injected(account_tasks_module.prune_account_avatar_orphans.original_func)
 
     def test_worker_module_is_the_taskiq_registry_entrypoint(self) -> None:
         assert taskiq_worker_module.broker is taskiq_broker_module.broker
@@ -74,4 +87,10 @@ class TestTaskiqScheduleConfiguration:
         assert (
             taskiq_worker_module.broker.find_task(constants.taskiq.auth_session_prune_task_name)
             is auth_tasks_module.prune_expired_auth_sessions
+        )
+        assert (
+            taskiq_worker_module.broker.find_task(
+                constants.taskiq.account_avatar_orphan_prune_task_name
+            )
+            is account_tasks_module.prune_account_avatar_orphans
         )

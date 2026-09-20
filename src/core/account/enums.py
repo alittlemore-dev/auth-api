@@ -1,6 +1,11 @@
 from core.enums import StrEnum
 
 
+class GenderEnum(StrEnum):
+    MALE = "male"
+    FEMALE = "female"
+
+
 class ManagedAccountActionEnum(StrEnum):
     UPDATE_ROLE = "updateRole"
     UPDATE_PASSWORD = "updatePassword"  # noqa: S105  # nosec B105

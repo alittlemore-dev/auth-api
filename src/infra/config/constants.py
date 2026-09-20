@@ -32,6 +32,21 @@ class TaskiqConstants:
     consumer_group_name: Literal["auth_api_background"] = "auth_api_background"
     result_prefix: Literal["auth_api_taskiq_results"] = "auth_api_taskiq_results"
     auth_session_prune_task_name: Literal["auth_session_prune"] = "auth_session_prune"
+    account_avatar_orphan_prune_task_name: Literal["account_avatar_orphan_prune"] = (
+        "account_avatar_orphan_prune"
+    )
+
+
+class AccountAvatarConstants:
+    max_source_bytes: int = 5 * 1024 * 1024
+    supported_mime_types: frozenset[str] = frozenset({"image/jpeg", "image/png", "image/webp"})
+    max_decoded_pixels: int = 25_000_000
+    output_size_pixels: int = 512
+    webp_quality: int = 90
+    webp_method: int = 6
+    stream_chunk_size: int = 64 * 1024
+    private_bucket_name: Literal["auth-avatars"] = "auth-avatars"
+    orphan_retention_seconds: int = 24 * 60 * 60
 
 
 class AdminValidationConstants:
@@ -57,6 +72,7 @@ class Constants:
     path: PathConstants = PathConstants()
     valkey: ValkeyConstants = ValkeyConstants()
     taskiq: TaskiqConstants = TaskiqConstants()
+    account_avatar: AccountAvatarConstants = AccountAvatarConstants()
     admin_validation: AdminValidationConstants = AdminValidationConstants()
     auth: AuthConstants = AuthConstants()
 

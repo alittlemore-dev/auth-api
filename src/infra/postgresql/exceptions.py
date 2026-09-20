@@ -1,0 +1,2 @@
+class EncryptedValueError(Exception):
+    pass

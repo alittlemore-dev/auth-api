@@ -1,6 +1,11 @@
 from abc import ABC, abstractmethod
 
-from core.account.schemas import ManagedAccount, ManagedAccountFilters
+from core.account.schemas import (
+    CurrentAccount,
+    CurrentAccountUpdateParams,
+    ManagedAccount,
+    ManagedAccountFilters,
+)
 from core.auth.enums import RoleEnum
 from core.auth.schemas import User
 
@@ -13,6 +18,34 @@ class GetUserByUsernameStorage(ABC):
 
 class UserAccountStorage(GetUserByUsernameStorage, ABC):
     pass
+
+
+class CurrentAccountStorage(ABC):
+    @abstractmethod
+    async def get_current_account(self, *, username: str) -> CurrentAccount:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def update_current_account(
+        self,
+        *,
+        username: str,
+        params: CurrentAccountUpdateParams,
+    ) -> CurrentAccount:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def update_avatar_object_name(
+        self,
+        *,
+        username: str,
+        object_name: str | None,
+    ) -> CurrentAccount:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def list_avatar_object_names(self) -> frozenset[str]:
+        raise NotImplementedError
 
 
 class ManagedAccountStorage(UserAccountStorage, ABC):

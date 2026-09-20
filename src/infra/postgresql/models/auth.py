@@ -6,13 +6,16 @@ from sqlalchemy.orm import Mapped, declared_attr, mapped_column
 from sqlalchemy_dev_utils.mixins.audit import AuditMixin
 from sqlalchemy_dev_utils.types.datetime import UTCDateTime
 
-from core.account.schemas import ManagedAccount
+from core.account.enums import GenderEnum
+from core.account.schemas import CurrentAccount, ManagedAccount
 from core.auth.enums import AuthSessionAuthMethodEnum, AuthSessionDeviceTypeEnum, RoleEnum
 from core.auth.schemas import AuthSession, AuthSessionClientMetadata, User
 from core.auth.types import SessionSecretHash
 from core.schemas import Secret
+from infra.config.settings import settings
 from infra.postgresql.models.base import BaseModel, TableArgs
 from infra.postgresql.models.mixins.ids import HexUuidIDMixin
+from infra.postgresql.types import EncryptedString
 
 
 class UserModel(BaseModel):
@@ -32,6 +35,47 @@ class UserModel(BaseModel):
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         doc="Whether the user may authenticate",
+    )
+    first_name: Mapped[Secret[str] | None] = mapped_column(
+        EncryptedString[str](
+            secret_key=settings.app.secret_key.to_domain_secret(),
+            serialize=str,
+            deserialize=str,
+        ),
+        nullable=True,
+        doc="Encrypted first name",
+    )
+    last_name: Mapped[Secret[str] | None] = mapped_column(
+        EncryptedString[str](
+            secret_key=settings.app.secret_key.to_domain_secret(),
+            serialize=str,
+            deserialize=str,
+        ),
+        nullable=True,
+        doc="Encrypted last name",
+    )
+    middle_name: Mapped[Secret[str] | None] = mapped_column(
+        EncryptedString[str](
+            secret_key=settings.app.secret_key.to_domain_secret(),
+            serialize=str,
+            deserialize=str,
+        ),
+        nullable=True,
+        doc="Encrypted middle name",
+    )
+    gender: Mapped[Secret[GenderEnum] | None] = mapped_column(
+        EncryptedString[GenderEnum](
+            secret_key=settings.app.secret_key.to_domain_secret(),
+            serialize=lambda value: value.value,
+            deserialize=GenderEnum.from_value,
+        ),
+        nullable=True,
+        doc="Encrypted gender",
+    )
+    avatar_object_name: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        doc="Private avatar object name",
     )
 
     @declared_attr.directive
@@ -71,6 +115,17 @@ class UserModel(BaseModel):
             username=self.username,
             role=self.role,
             is_active=self.is_active,
+        )
+
+    def to_current_account_schema(self) -> CurrentAccount:
+        return CurrentAccount(
+            username=self.username,
+            role=self.role,
+            first_name=self.first_name,
+            last_name=self.last_name,
+            middle_name=self.middle_name,
+            gender=self.gender,
+            avatar_object_name=self.avatar_object_name,
         )
 
     @classmethod

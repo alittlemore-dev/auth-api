@@ -3,14 +3,14 @@ from datetime import datetime
 from math import ceil
 from typing import Self
 
-from core.account.enums import ManagedAccountActionEnum
+from core.account.enums import GenderEnum, ManagedAccountActionEnum
 from core.account.exceptions import (
     ManagedAccountActionForbiddenError,
     SelfAccountActionForbiddenError,
 )
 from core.auth.enums import AuthSessionAuthMethodEnum, RoleEnum
 from core.auth.schemas import AuthSession, AuthSessionClientMetadata
-from core.schemas import Secret, ValuedDataclass
+from core.schemas import UNSET, Secret, UnsetType, ValuedDataclass
 
 SELF_FORBIDDEN_MANAGED_ACCOUNT_ACTIONS = (
     ManagedAccountActionEnum.UPDATE_ROLE,
@@ -18,6 +18,44 @@ SELF_FORBIDDEN_MANAGED_ACCOUNT_ACTIONS = (
     ManagedAccountActionEnum.DEACTIVATE,
     ManagedAccountActionEnum.DELETE,
 )
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class CurrentAccount:
+    username: str
+    role: RoleEnum
+    first_name: Secret[str] | None
+    last_name: Secret[str] | None
+    middle_name: Secret[str] | None
+    gender: Secret[GenderEnum] | None
+    avatar_object_name: str | None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class CurrentAccountUpdateParams:
+    first_name: Secret[str] | UnsetType | None = UNSET
+    last_name: Secret[str] | UnsetType | None = UNSET
+    middle_name: Secret[str] | UnsetType | None = UNSET
+    gender: Secret[GenderEnum] | UnsetType | None = UNSET
+
+    def normalized(self) -> Self:
+        return self.__class__(
+            first_name=self._normalize_name(self.first_name),
+            last_name=self._normalize_name(self.last_name),
+            middle_name=self._normalize_name(self.middle_name),
+            gender=self.gender,
+        )
+
+    @staticmethod
+    def _normalize_name(
+        value: Secret[str] | UnsetType | None,
+    ) -> Secret[str] | UnsetType | None:
+        if isinstance(value, UnsetType):
+            return value
+        if value is None:
+            return None
+        normalized = value.get_secret_value().strip()
+        return Secret(normalized) if normalized else None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

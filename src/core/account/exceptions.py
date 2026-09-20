@@ -19,3 +19,15 @@ class SelfAccountActionForbiddenError(DomainError):
 
 class ManagedAccountActionForbiddenError(DomainError):
     message = "Cannot perform this action on this managed account"
+
+
+class InvalidAccountAvatarError(DomainError):
+    message = "Invalid account avatar"
+
+
+class AccountAvatarNotFoundError(EntryNotFoundError):
+    message = "Account avatar not found"
+
+
+class AccountAvatarStorageError(DomainError):
+    message = "Avatar storage operation failed"

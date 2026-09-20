@@ -26,6 +26,8 @@ load_runtime_secrets() {
         "AUTH_PRIVATE_KEY"
         "AUTH_PUBLIC_KEY"
         "DB_PASSWORD"
+        "MINIO_ACCESS_KEY"
+        "MINIO_SECRET_KEY"
         "SENTRY_DSN"
     )
     local variable_name

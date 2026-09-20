@@ -71,8 +71,17 @@ async def test_login_refresh_logout_revokes_session_and_access(
         assert flag in login.headers["set-cookie"]
     token = login.json()["accessToken"]
     bearer = {"Authorization": f"Bearer {token}"}
-    account = auth_client.get("/api/auth/account/base", headers=bearer)
-    assert account.json() == {"username": "owner", "role": "owner"}
+    account = auth_client.get("/api/auth/account/me", headers=bearer)
+    assert account.headers["cache-control"] == "no-store"
+    assert account.json() == {
+        "username": "owner",
+        "role": "owner",
+        "firstName": None,
+        "lastName": None,
+        "middleName": None,
+        "gender": None,
+        "hasAvatar": False,
+    }
     assert (
         auth_client.get("/api/auth/admin/accounts?page=1&pageSize=20", headers=bearer).status_code
         == 200

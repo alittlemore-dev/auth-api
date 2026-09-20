@@ -66,6 +66,21 @@ def api_json_body(
     )
 
 
+def api_multipart_body(
+    *,
+    title: str,
+    description: str,
+    examples: tuple[object, ...],
+) -> BodyKwarg:
+    return BodyKwarg(
+        title=title,
+        description=description,
+        examples=build_examples(*examples),
+        media_type=RequestEncodingType.MULTI_PART,
+        schema_extra={"examples": list(examples)},
+    )
+
+
 PageQuery: TypeAlias = Annotated[
     int,
     api_query_parameter(

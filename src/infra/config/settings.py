@@ -80,6 +80,24 @@ class AuthSettings(ProjectBaseSettings):
     token_prefix: str
 
 
+class MinioSettings(ProjectBaseSettings):
+    model_config = SettingsConfigDict(env_prefix="MINIO_")
+
+    host: str
+    port: int
+    region: str
+    bucket: str
+    access_key: str
+    secret_key: SecretStrExtended
+    secure: bool
+    addressing_style: Literal["path", "virtual"]
+
+    @property
+    def endpoint_url(self) -> str:
+        schema = "https" if self.secure else "http"
+        return f"{schema}://{self.host}:{self.port}"
+
+
 class SentrySettings(ProjectBaseSettings):
     model_config = SettingsConfigDict(env_prefix="SENTRY_")
 
@@ -101,6 +119,7 @@ class TaskiqSettings(ProjectBaseSettings):
     model_config = SettingsConfigDict(env_prefix="TASKIQ_")
 
     auth_session_prune_interval_seconds: PositiveInt
+    account_avatar_orphan_prune_interval_seconds: PositiveInt
     result_expire_seconds: PositiveInt
 
 
@@ -108,6 +127,7 @@ class Settings:
     app: AppSettings
     auth: AuthSettings
     database: DatabaseSettings
+    minio: MinioSettings
     sentry: SentrySettings
     taskiq: TaskiqSettings
     valkey: ValkeySettings
@@ -116,6 +136,7 @@ class Settings:
         self.app = AppSettings()
         self.auth = AuthSettings()
         self.database = DatabaseSettings()
+        self.minio = MinioSettings()
         self.sentry = SentrySettings()
         self.taskiq = TaskiqSettings()
         self.valkey = ValkeySettings()

@@ -1,7 +1,8 @@
 import hashlib
 from typing import Any
 
-from core.account.schemas import ManagedAccount, ManagedAccounts
+from core.account.enums import GenderEnum
+from core.account.schemas import CurrentAccount, ManagedAccount, ManagedAccounts
 from core.auth.enums import RoleEnum
 from core.auth.schemas import JwtUser, User
 from core.auth.types import Token
@@ -46,6 +47,27 @@ class CoreFactoryHelper:
             values=values or [],
             total_count=total_count,
             total_pages=total_pages,
+        )
+
+    @classmethod
+    def current_account(
+        cls,
+        username: str = "test",
+        role: RoleEnum = RoleEnum.USER,
+        first_name: str | None = None,
+        last_name: str | None = None,
+        middle_name: str | None = None,
+        gender: GenderEnum | None = None,
+        avatar_object_name: str | None = None,
+    ) -> CurrentAccount:
+        return CurrentAccount(
+            username=username,
+            role=role,
+            first_name=Secret(first_name) if first_name is not None else None,
+            last_name=Secret(last_name) if last_name is not None else None,
+            middle_name=Secret(middle_name) if middle_name is not None else None,
+            gender=Secret(gender) if gender is not None else None,
+            avatar_object_name=avatar_object_name,
         )
 
     @classmethod

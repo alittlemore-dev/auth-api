@@ -1,13 +1,29 @@
 from contextlib import suppress
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 
+from core.account.avatar_schemas import (
+    AccountAvatarUpload,
+    AvatarOrphanCleanupResult,
+    CurrentAccountAvatarContent,
+    CurrentAccountAvatarMutationResult,
+)
+from core.account.clients import (
+    AccountAvatarClient,
+    AccountAvatarProcessor,
+    AccountAvatarRollbackRegistrar,
+)
 from core.account.enums import ManagedAccountActionEnum
 from core.account.exceptions import (
+    AccountAvatarNotFoundError,
+    AccountAvatarStorageError,
     AccountUsernameAlreadyExistsError,
     InvalidManagedAccountRoleError,
     ManagedAccountActionForbiddenError,
 )
 from core.account.schemas import (
+    CurrentAccount,
+    CurrentAccountUpdateParams,
     ManagedAccount,
     ManagedAccountCreateOperationParams,
     ManagedAccountFilters,
@@ -22,11 +38,111 @@ from core.account.schemas import (
     ManagedAccountSessionsRevokeOthersOperationParams,
     ManagedAccountTargetOperationParams,
 )
-from core.account.storages import ManagedAccountStorage
+from core.account.storages import CurrentAccountStorage, ManagedAccountStorage
 from core.auth.enums import RoleEnum
 from core.auth.exceptions import UserNotFoundError
 from core.auth.password_hashers import PasswordHasher
 from core.auth.storages import AuthSessionStorage
+from core.generators import HexUuidIdGenerator
+
+
+@dataclass(kw_only=True, slots=True, frozen=True)
+class AvatarOrphanCleanupUseCase:
+    storage: CurrentAccountStorage
+    client: AccountAvatarClient
+    retention_seconds: int = 24 * 60 * 60
+
+    async def prune(self, *, current_datetime: datetime) -> AvatarOrphanCleanupResult:
+        object_names = await self.client.list_objects_older_than(
+            cutoff=current_datetime - timedelta(seconds=self.retention_seconds),
+        )
+        referenced_names = await self.storage.list_avatar_object_names()
+        referenced_count = 0
+        deleted_count = 0
+        failed_count = 0
+        for object_name in object_names:
+            if object_name in referenced_names:
+                referenced_count += 1
+                continue
+            try:
+                await self.client.delete(object_name=object_name)
+            except AccountAvatarStorageError:
+                failed_count += 1
+            else:
+                deleted_count += 1
+        return AvatarOrphanCleanupResult(
+            scanned_count=len(object_names),
+            referenced_count=referenced_count,
+            deleted_count=deleted_count,
+            failed_count=failed_count,
+        )
+
+
+@dataclass(kw_only=True, slots=True, frozen=True)
+class CurrentAccountUseCase:
+    storage: CurrentAccountStorage
+    avatar_client: AccountAvatarClient
+    avatar_processor: AccountAvatarProcessor
+    id_generator: HexUuidIdGenerator
+
+    async def get_account(self, *, username: str) -> CurrentAccount:
+        return await self.storage.get_current_account(username=username)
+
+    async def update_account(
+        self,
+        *,
+        username: str,
+        params: CurrentAccountUpdateParams,
+    ) -> CurrentAccount:
+        return await self.storage.update_current_account(
+            username=username,
+            params=params.normalized(),
+        )
+
+    async def replace_avatar(
+        self,
+        *,
+        username: str,
+        upload: AccountAvatarUpload,
+        rollback_registrar: AccountAvatarRollbackRegistrar,
+    ) -> CurrentAccountAvatarMutationResult:
+        current = await self.storage.get_current_account(username=username)
+        processed = self.avatar_processor.process(upload=upload)
+        object_name = f"avatars/{self.id_generator.get_next()}.webp"
+        await self.avatar_client.upload(
+            object_name=object_name,
+            content=processed.content,
+        )
+        rollback_registrar.register_new_object(object_name=object_name)
+        updated = await self.storage.update_avatar_object_name(
+            username=username,
+            object_name=object_name,
+        )
+        return CurrentAccountAvatarMutationResult(
+            account=updated,
+            old_object_name=current.avatar_object_name,
+        )
+
+    async def remove_avatar(self, *, username: str) -> CurrentAccountAvatarMutationResult:
+        current = await self.storage.get_current_account(username=username)
+        if current.avatar_object_name is None:
+            return CurrentAccountAvatarMutationResult(account=current, old_object_name=None)
+        updated = await self.storage.update_avatar_object_name(
+            username=username,
+            object_name=None,
+        )
+        return CurrentAccountAvatarMutationResult(
+            account=updated,
+            old_object_name=current.avatar_object_name,
+        )
+
+    async def get_avatar(self, *, username: str) -> CurrentAccountAvatarContent:
+        account = await self.storage.get_current_account(username=username)
+        if account.avatar_object_name is None:
+            raise AccountAvatarNotFoundError
+        return CurrentAccountAvatarContent(
+            content=self.avatar_client.stream(object_name=account.avatar_object_name),
+        )
 
 
 @dataclass(kw_only=True, slots=True, frozen=True)

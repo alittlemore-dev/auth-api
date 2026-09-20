@@ -3,6 +3,16 @@ from dataclasses import dataclass
 from typing import Self
 
 
+class UnsetType:
+    __slots__ = ()
+
+    def __repr__(self) -> str:
+        return "UNSET"
+
+
+UNSET = UnsetType()
+
+
 @dataclass(kw_only=False, frozen=True, slots=True)
 class Secret[T]:
     __value: T

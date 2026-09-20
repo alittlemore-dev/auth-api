@@ -22,10 +22,14 @@ dependencies = [
     "sentry-sdk[litestar]>=2.68.0",
     "pem>=23.1.0",
     "argon2-cffi>=25.1.0",
+    "cryptography>=50.0.0",
     "dishka>=1.10.1",
     "taskiq>=0.12.4",
     "taskiq-redis>=1.2.3",
     "ua-parser[regex]>=1.0.2",
+    "pillow>=12.3.0",
+    "aiobotocore>=3.9.0",
+    "types-aiobotocore-s3>=3.9.0",
 ]
 
 [dependency-groups]

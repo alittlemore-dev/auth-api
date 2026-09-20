@@ -13,6 +13,7 @@ from verbose_http_exceptions import (
 
 from core.account.exceptions import (
     AccountUsernameAlreadyExistsError,
+    InvalidAccountAvatarError,
     InvalidManagedAccountRoleError,
     ManagedAccountActionForbiddenError,
     SelfAccountActionForbiddenError,
@@ -99,6 +100,7 @@ def test_domain_error_verbose_exception_mapping() -> None:
         UnauthorizedError: UnauthorizedHTTPException,
         ForbiddenError: ForbiddenHTTPException,
         AccountUsernameAlreadyExistsError: BadRequestHTTPException,
+        InvalidAccountAvatarError: BadRequestHTTPException,
         InvalidManagedAccountRoleError: BadRequestHTTPException,
         SelfAccountActionForbiddenError: ForbiddenHTTPException,
         ManagedAccountActionForbiddenError: ForbiddenHTTPException,

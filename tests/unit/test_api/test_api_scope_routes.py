@@ -9,7 +9,7 @@ class TestApiScopeRoutes(ApiTestCase):
         ("path", "expected_status"),
         [
             ("/api/auth/healthcheck", codes.OK),
-            ("/api/auth/account/base", codes.OK),
+            ("/api/auth/account/me", codes.UNAUTHORIZED),
             ("/api/auth/admin/accounts", codes.UNAUTHORIZED),
             ("/api/auth/docs", codes.OK),
         ],
@@ -26,7 +26,7 @@ class TestApiScopeRoutes(ApiTestCase):
         "path",
         [
             "/api/healthcheck",
-            "/api/account/base",
+            "/api/account/me",
             "/api/admin/accounts",
             "/api/docs",
         ],

@@ -1,9 +1,14 @@
 from typing import cast
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from core.account.clients import AccountAvatarClient
+from core.account.exceptions import AccountAvatarStorageError
+from entrypoints.litestar.api.account import post_commit as account_post_commit
+from entrypoints.litestar.api.account.post_commit import register_account_avatar_cleanup
+from infra.account_avatar_actions import RequestAccountAvatarRollbackRegistrar
 from infra.ioc.prodivers.database_provider import DatabaseProvider
 from infra.post_commit_actions import PostCommitActions, RollbackActions
 from infra.postgresql import meta
@@ -30,6 +35,58 @@ class SessionFactory:
 
 
 class TestDatabasePostCommitActions:
+    async def test_avatar_upload_is_deleted_when_commit_fails(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        session = AsyncMock(spec=AsyncSession)
+        session.commit.side_effect = RuntimeError("commit failed")
+        session_factory = cast(
+            "async_sessionmaker[AsyncSession]",
+            SessionFactory(session=session),
+        )
+        monkeypatch.setattr(meta, "sessionmaker", session_factory)
+        client = Mock(spec=AccountAvatarClient)
+        registrar = RequestAccountAvatarRollbackRegistrar(
+            client=client,
+            rollback_actions=RollbackActions(actions=[]),
+        )
+        registrar.register_new_object(object_name="avatars/new-private-name.webp")
+        provider = DatabaseProvider()
+        generator = provider.provide_async_session(
+            transaction_state=DatabaseTransactionState(rollback_required=False),
+            post_commit_actions=PostCommitActions(actions=[]),
+            rollback_actions=registrar.rollback_actions,
+        )
+
+        assert await anext(generator) is session
+        with pytest.raises(RuntimeError, match="commit failed"):
+            await generator.asend(None)
+
+        client.delete.assert_awaited_once_with(object_name="avatars/new-private-name.webp")
+
+    async def test_failed_post_commit_avatar_delete_is_sanitized_and_suppressed(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        client = Mock(spec=AccountAvatarClient)
+        client.delete.side_effect = AccountAvatarStorageError
+        logger = Mock()
+        monkeypatch.setattr(account_post_commit, "log_sanitized_exception", logger)
+        actions = PostCommitActions(actions=[])
+        register_account_avatar_cleanup(
+            old_object_name="avatars/old-private-name.webp",
+            client=client,
+            post_commit_actions=actions,
+        )
+
+        await actions.run()
+
+        logger.assert_called_once()
+        logged = repr(logger.call_args)
+        assert "old-private-name" not in logged
+        assert logger.call_args.kwargs["failed_count"] == 1
+
     async def test_runs_actions_after_successful_commit(
         self,
         monkeypatch: pytest.MonkeyPatch,
