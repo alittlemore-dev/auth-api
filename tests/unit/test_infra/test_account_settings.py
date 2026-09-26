@@ -46,8 +46,9 @@ def test_telegram_bot_keys_are_explicit_enum_values() -> None:
         {"telegram_bots": {"personal-workspace": {"enabled": True}}},
     )
     assert schema.telegram_bots[TelegramBotId.PERSONAL_WORKSPACE].enabled
+    assert not schema.telegram_bots[TelegramBotId.PERSONAL_WORKSPACE].notify
     assert schema.model_dump(mode="json")["telegram_bots"] == {
-        "personal-workspace": {"enabled": True},
+        "personal-workspace": {"enabled": True, "notify": False},
     }
     with pytest.raises(ValidationError):
         AccountSettingsSchema.model_validate(

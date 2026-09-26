@@ -221,7 +221,7 @@ async def test_telegram_account_setting_full_stack(
             json={
                 "language": "ru",
                 "theme": "dark",
-                "telegramBots": {"personal-workspace": {"enabled": True}},
+                "telegramBots": {"personal-workspace": {"enabled": True, "notify": True}},
             },
         ).status_code
         == 200
@@ -230,7 +230,7 @@ async def test_telegram_account_setting_full_stack(
     assert updated.json()["settings"] == {
         "language": "ru",
         "theme": "dark",
-        "telegramBots": {"personal-workspace": {"enabled": True}},
+        "telegramBots": {"personal-workspace": {"enabled": True, "notify": True}},
     }
 
     internal = auth_client.get(
@@ -239,7 +239,7 @@ async def test_telegram_account_setting_full_stack(
         params={"ownerUsername": "owner"},
     )
     assert internal.status_code == 200
-    assert internal.json() == {"available": True, "enabled": True}
+    assert internal.json() == {"available": True, "enabled": True, "notify": True}
     assert internal.headers["cache-control"] == "no-store"
     unknown = auth_client.get(
         internal_path,
@@ -247,4 +247,4 @@ async def test_telegram_account_setting_full_stack(
         params={"ownerUsername": "unknown"},
     )
     assert unknown.status_code == 200
-    assert unknown.json() == {"available": True, "enabled": False}
+    assert unknown.json() == {"available": True, "enabled": False, "notify": False}

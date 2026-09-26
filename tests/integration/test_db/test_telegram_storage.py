@@ -28,7 +28,9 @@ class TestAccountSettingsStorage(StorageTestCase):
             settings=AccountSettings(
                 language=AccountLanguageEnum.RU,
                 theme=AccountThemeEnum.DARK,
-                telegram_bots={TelegramBotId.PERSONAL_WORKSPACE: TelegramBotSettings(enabled=True)},
+                telegram_bots={
+                    TelegramBotId.PERSONAL_WORKSPACE: TelegramBotSettings(enabled=True, notify=True)
+                },
             ),
         )
         session.expire_all()
@@ -36,6 +38,7 @@ class TestAccountSettingsStorage(StorageTestCase):
         user = await session.scalar(select(UserModel).where(UserModel.username == "anna"))
         assert user is not None
         assert user.settings.telegram_bots[TelegramBotId.PERSONAL_WORKSPACE].enabled
+        assert user.settings.telegram_bots[TelegramBotId.PERSONAL_WORKSPACE].notify
         assert user.settings.language == AccountLanguageEnum.RU
         assert user.settings.theme == AccountThemeEnum.DARK
         await account_storage.update_settings(username="anna", settings=AccountSettings())

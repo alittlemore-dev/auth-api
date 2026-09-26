@@ -29,6 +29,7 @@ SELF_FORBIDDEN_MANAGED_ACCOUNT_ACTIONS = (
 @dataclass(frozen=True, slots=True, kw_only=True)
 class TelegramBotSettings:
     enabled: bool = False
+    notify: bool = False
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

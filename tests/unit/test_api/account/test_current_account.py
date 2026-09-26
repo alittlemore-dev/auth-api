@@ -128,6 +128,7 @@ class TestCurrentAccountAPI(ApiTestCase):
         assert params["settings"].language == "ru"
         assert params["settings"].theme == "dark"
         assert params["settings"].telegram_bots["personal-workspace"].enabled
+        assert not params["settings"].telegram_bots["personal-workspace"].notify
 
     def test_settings_requires_authentication(self) -> None:
         response = self.no_auth_api.client.put("/api/auth/account/me/settings", json={})

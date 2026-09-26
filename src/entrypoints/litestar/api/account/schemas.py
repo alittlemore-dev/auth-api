@@ -67,6 +67,7 @@ class CurrentAccountUpdateRequestSchema(CamelCaseSchema):
 
 class TelegramBotSettingsSchema(CamelCaseSchema):
     enabled: bool = False
+    notify: bool = False
 
 
 class AccountSettingsSchema(CamelCaseSchema):
@@ -81,7 +82,7 @@ class AccountSettingsSchema(CamelCaseSchema):
             language=self.language,
             theme=self.theme,
             telegram_bots={
-                bot_id: TelegramBotSettings(enabled=value.enabled)
+                bot_id: TelegramBotSettings(enabled=value.enabled, notify=value.notify)
                 for bot_id, value in self.telegram_bots.items()
             },
         )
@@ -92,7 +93,7 @@ class AccountSettingsSchema(CamelCaseSchema):
             language=schema.language,
             theme=schema.theme,
             telegram_bots={
-                bot_id: TelegramBotSettingsSchema(enabled=value.enabled)
+                bot_id: TelegramBotSettingsSchema(enabled=value.enabled, notify=value.notify)
                 for bot_id, value in schema.telegram_bots.items()
             },
         )
