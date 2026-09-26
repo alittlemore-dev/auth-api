@@ -39,7 +39,7 @@ class TestCurrentAccountAPI(ApiTestCase):
             "middleName": None,
             "gender": "male",
             "hasAvatar": True,
-            "settings": {"language": "en", "theme": "light"},
+            "settings": {"language": "en", "theme": "light", "telegramBots": {}},
         }
         self.use_case.get_account.assert_called_once_with(username="test")
 
@@ -115,7 +115,11 @@ class TestCurrentAccountAPI(ApiTestCase):
         self.use_case.update_settings.return_value = self.factory.core.current_account()
         response = self.api.client.put(
             "/api/auth/account/me/settings",
-            json={"language": "ru", "theme": "dark"},
+            json={
+                "language": "ru",
+                "theme": "dark",
+                "telegramBots": {"personal-workspace": {"enabled": True}},
+            },
         )
         assert response.status_code == codes.OK
         assert response.headers["Cache-Control"] == "no-store"
@@ -123,6 +127,7 @@ class TestCurrentAccountAPI(ApiTestCase):
         assert params["username"] == "test"
         assert params["settings"].language == "ru"
         assert params["settings"].theme == "dark"
+        assert params["settings"].telegram_bots["personal-workspace"].enabled
 
     def test_settings_requires_authentication(self) -> None:
         response = self.no_auth_api.client.put("/api/auth/account/me/settings", json={})
@@ -146,6 +151,7 @@ class TestCurrentAccountAPI(ApiTestCase):
             {"theme": "system"},
             {"language": None},
             {"unknown": True},
+            {"telegramBots": {"unknown-bot": {"enabled": True}}},
         ):
             response = self.api.client.put("/api/auth/account/me/settings", json=data)
             assert response.status_code == codes.BAD_REQUEST

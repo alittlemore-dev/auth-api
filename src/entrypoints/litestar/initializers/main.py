@@ -16,6 +16,7 @@ from litestar.types import Middleware
 
 from entrypoints.litestar.api.auth.responses import set_verify_response_no_store
 from entrypoints.litestar.api.routers import api_router
+from entrypoints.litestar.api.telegram.responses import set_telegram_response_no_store
 from entrypoints.litestar.cli.plugins import CLIPlugin
 from entrypoints.litestar.exception_handlers import get_litestar_exception_handlers
 from entrypoints.litestar.middlewares.auth import AuthenticationMiddleware
@@ -115,7 +116,7 @@ def create_litestar_app(
         route_handlers=create_routers(),
         lifespan=lifespan,
         debug=settings.app.debug,
-        before_send=[set_verify_response_no_store],
+        before_send=[set_verify_response_no_store, set_telegram_response_no_store],
         exception_handlers=get_litestar_exception_handlers(),
         middleware=[*create_middlewares(container), *extra_middlewares],
         plugins=[*create_plugins(), *extra_plugins],

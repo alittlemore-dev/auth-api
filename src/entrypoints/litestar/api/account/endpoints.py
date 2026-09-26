@@ -80,7 +80,7 @@ class AccountApiController(Controller):
             api_json_body(
                 title="Account settings replacement",
                 description="Replace all preferences; omitted fields use schema defaults.",
-                examples=({"language": "en", "theme": "light"},),
+                examples=({"language": "en", "theme": "light", "telegramBots": {}},),
             ),
         ],
     ) -> Response[CurrentAccountResponseSchema]:

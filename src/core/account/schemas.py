@@ -8,6 +8,7 @@ from core.account.enums import (
     AccountThemeEnum,
     GenderEnum,
     ManagedAccountActionEnum,
+    TelegramBotId,
 )
 from core.account.exceptions import (
     ManagedAccountActionForbiddenError,
@@ -26,9 +27,15 @@ SELF_FORBIDDEN_MANAGED_ACCOUNT_ACTIONS = (
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class TelegramBotSettings:
+    enabled: bool = False
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class AccountSettings:
     language: AccountLanguageEnum = AccountLanguageEnum.EN
     theme: AccountThemeEnum = AccountThemeEnum.LIGHT
+    telegram_bots: dict[TelegramBotId, TelegramBotSettings] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

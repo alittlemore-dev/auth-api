@@ -4,9 +4,14 @@ from litestar.datastructures.upload_file import UploadFile
 from pydantic import ConfigDict, Field, field_validator
 
 from core.account.avatar_schemas import AccountAvatarUpload
-from core.account.enums import AccountLanguageEnum, AccountThemeEnum, GenderEnum
+from core.account.enums import AccountLanguageEnum, AccountThemeEnum, GenderEnum, TelegramBotId
 from core.account.exceptions import InvalidAccountAvatarError
-from core.account.schemas import AccountSettings, CurrentAccount, CurrentAccountUpdateParams
+from core.account.schemas import (
+    AccountSettings,
+    CurrentAccount,
+    CurrentAccountUpdateParams,
+    TelegramBotSettings,
+)
 from core.auth.enums import RoleEnum
 from core.schemas import UNSET, Secret, UnsetType
 from entrypoints.litestar.api.schemas import CamelCaseSchema
@@ -60,18 +65,37 @@ class CurrentAccountUpdateRequestSchema(CamelCaseSchema):
         return Secret(value) if value is not None else None
 
 
+class TelegramBotSettingsSchema(CamelCaseSchema):
+    enabled: bool = False
+
+
 class AccountSettingsSchema(CamelCaseSchema):
     model_config = ConfigDict(validate_default=True)
 
     language: AccountLanguageEnum = AccountLanguageEnum.EN
     theme: AccountThemeEnum = AccountThemeEnum.LIGHT
+    telegram_bots: dict[TelegramBotId, TelegramBotSettingsSchema] = Field(default_factory=dict)
 
     def to_domain_schema(self) -> AccountSettings:
-        return AccountSettings(language=self.language, theme=self.theme)
+        return AccountSettings(
+            language=self.language,
+            theme=self.theme,
+            telegram_bots={
+                bot_id: TelegramBotSettings(enabled=value.enabled)
+                for bot_id, value in self.telegram_bots.items()
+            },
+        )
 
     @classmethod
     def from_domain_schema(cls, schema: AccountSettings) -> AccountSettingsSchema:
-        return cls(language=schema.language, theme=schema.theme)
+        return cls(
+            language=schema.language,
+            theme=schema.theme,
+            telegram_bots={
+                bot_id: TelegramBotSettingsSchema(enabled=value.enabled)
+                for bot_id, value in schema.telegram_bots.items()
+            },
+        )
 
 
 class CurrentAccountResponseSchema(CamelCaseSchema):

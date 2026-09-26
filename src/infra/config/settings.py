@@ -1,13 +1,15 @@
 from ipaddress import IPv4Address
 from typing import Literal
 
-from pydantic import PositiveInt, SecretStr
+from pydantic import PositiveInt, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from core.account.enums import TelegramBotId
 from core.schemas import Secret
 from infra.config.constants import constants
 
 _LOCAL_ALL_INTERFACES_HOST = IPv4Address(0).compressed
+_MISSING_TELEGRAM_CONFIGURATION = "Telegram service credential is required"
 
 
 class ProjectBaseSettings(BaseSettings):
@@ -123,6 +125,22 @@ class TaskiqSettings(ProjectBaseSettings):
     result_expire_seconds: PositiveInt
 
 
+class TelegramSettings(ProjectBaseSettings):
+    model_config = SettingsConfigDict(env_prefix="TELEGRAM_")
+
+    available: bool = False
+    service_secret: SecretStrExtended = SecretStrExtended("")
+
+    def is_available_for(self, bot_id: TelegramBotId) -> bool:
+        return bot_id == TelegramBotId.PERSONAL_WORKSPACE and self.available
+
+    @model_validator(mode="after")
+    def validate_available_configuration(self) -> TelegramSettings:  # noqa: N804
+        if self.available and not self.service_secret.get_secret_value():
+            raise ValueError(_MISSING_TELEGRAM_CONFIGURATION)
+        return self
+
+
 class Settings:
     app: AppSettings
     auth: AuthSettings
@@ -130,6 +148,7 @@ class Settings:
     minio: MinioSettings
     sentry: SentrySettings
     taskiq: TaskiqSettings
+    telegram: TelegramSettings
     valkey: ValkeySettings
 
     def __init__(self) -> None:
@@ -139,6 +158,7 @@ class Settings:
         self.minio = MinioSettings()
         self.sentry = SentrySettings()
         self.taskiq = TaskiqSettings()
+        self.telegram = TelegramSettings()
         self.valkey = ValkeySettings()
 
 

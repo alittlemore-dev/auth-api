@@ -23,3 +23,7 @@ class AccountLanguageEnum(StrEnum):
 class AccountThemeEnum(StrEnum):
     LIGHT = "light"
     DARK = "dark"
+
+
+class TelegramBotId(StrEnum):
+    PERSONAL_WORKSPACE = "personal-workspace"

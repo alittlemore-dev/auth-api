@@ -1,8 +1,18 @@
 from collections.abc import Generator
 
 import pytest
+from pydantic import ValidationError
 
-from infra.config.settings import Settings
+from infra.config.settings import SecretStrExtended, Settings, TelegramSettings
+
+
+def test_available_telegram_requires_service_credential() -> None:
+    with pytest.raises(ValidationError):
+        TelegramSettings(
+            _env_file=None,
+            available=True,
+            service_secret=SecretStrExtended(""),
+        )
 
 
 class TestSettings:

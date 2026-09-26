@@ -1,5 +1,6 @@
 from collections.abc import AsyncGenerator
 
+import pytest
 import pytest_asyncio
 from argon2 import PasswordHasher
 from dishka import Provider, Scope, make_async_container, provide
@@ -14,6 +15,7 @@ from core.auth.storages import TokenRevocationStorage
 from core.auth.token_handlers import TokenHandler
 from entrypoints.litestar.initializers.main import create_litestar_app
 from infra.auth.token_handlers import PasetoTokenHandler
+from infra.config.settings import SecretStrExtended, settings
 from infra.ioc.registry import get_providers
 from infra.postgresql.models import AuthSessionModel, UserModel
 from infra.valkey.storages import ValkeyTokenRevocationStorage
@@ -81,7 +83,7 @@ async def test_login_refresh_logout_revokes_session_and_access(
         "middleName": None,
         "gender": None,
         "hasAvatar": False,
-        "settings": {"language": "en", "theme": "light"},
+        "settings": {"language": "en", "theme": "light", "telegramBots": {}},
     }
     assert (
         auth_client.get("/api/auth/admin/accounts?page=1&pageSize=20", headers=bearer).status_code
@@ -186,3 +188,63 @@ async def test_verify_access_token_full_stack(
     )
     assert logout.status_code == 200
     assert auth_client.post("/api/auth/verify", headers=bearer).status_code == 401
+
+
+async def test_telegram_account_setting_full_stack(
+    auth_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings.telegram, "available", True)
+    monkeypatch.setattr(
+        settings.telegram,
+        "service_secret",
+        SecretStrExtended("test-service-secret"),
+    )
+    login = auth_client.post(
+        "/api/auth/login",
+        json={"username": "owner", "password": "integration-password"},
+    )
+    assert login.status_code == 200
+    bearer = {"Authorization": f"Bearer {login.json()['accessToken']}"}
+    account_path = "/api/auth/account/me"
+    internal_path = "/api/auth/internal/telegram/personal-workspace/settings"
+    service_headers = {"X-Telegram-Service-Secret": "test-service-secret"}
+
+    initial = auth_client.get(account_path, headers=bearer)
+    assert initial.status_code == 200
+    assert initial.json()["settings"]["telegramBots"] == {}
+    assert initial.headers["cache-control"] == "no-store"
+    assert (
+        auth_client.put(
+            f"{account_path}/settings",
+            headers=bearer,
+            json={
+                "language": "ru",
+                "theme": "dark",
+                "telegramBots": {"personal-workspace": {"enabled": True}},
+            },
+        ).status_code
+        == 200
+    )
+    updated = auth_client.get(account_path, headers=bearer)
+    assert updated.json()["settings"] == {
+        "language": "ru",
+        "theme": "dark",
+        "telegramBots": {"personal-workspace": {"enabled": True}},
+    }
+
+    internal = auth_client.get(
+        internal_path,
+        headers=service_headers,
+        params={"ownerUsername": "owner"},
+    )
+    assert internal.status_code == 200
+    assert internal.json() == {"available": True, "enabled": True}
+    assert internal.headers["cache-control"] == "no-store"
+    unknown = auth_client.get(
+        internal_path,
+        headers=service_headers,
+        params={"ownerUsername": "unknown"},
+    )
+    assert unknown.status_code == 200
+    assert unknown.json() == {"available": True, "enabled": False}
