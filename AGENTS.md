@@ -7,6 +7,19 @@
 - Application-specific data, frontend, public edge, and integrated deployment belong to their owning repositories.
 - Do not change sibling repositories or migrate existing user data without an explicit request.
 
+## Account settings
+
+- Keep user preferences in `UserModel.settings`. Add ordinary preferences to the existing account
+  settings domain, API, and persistence schemas, and update them through the general
+  `PUT /api/auth/account/me/settings`, which replaces the full settings object. Check that every
+  field survives API-to-domain-to-persistence conversion and the reverse path. Do not create a
+  separate table, storage, use case, or public endpoint merely to update one preference.
+- Identify supported Telegram bots with `TelegramBotId` rather than arbitrary string keys in
+  account settings. Bot services read their scoped preferences through the protected
+  `GET /api/auth/internal/telegram/{telegram_bot_id}/settings`; enforce service authentication in
+  a guard or dependency before the handler runs. Keep bot invitations and Telegram user/chat links
+  in the owning bot service.
+
 ## Architecture and security
 
 - Preserve Python 3.14, uv, Litestar, Dishka, SQLAlchemy/Alembic, PostgreSQL, Valkey, and TaskIQ.
@@ -47,6 +60,7 @@
 ## Code Style
 
 - Use `pyproject.toml` as the source for formatting, lint, and typing configuration.
+- Add a trailing comma after the final argument of a multiline function or constructor call.
 - No docstrings unless interface is non-obvious from types
 - Comments: only for non-obvious WHY, never WHAT
 - No Python class name may start with a leading underscore anywhere in this repository, including
@@ -122,6 +136,11 @@
 
 ## HTTP and Schemas
 
+- Name Litestar route modules `endpoints.py`. Keep only `Controller` classes, route handlers, and
+  router registration in them; place transport schemas in `schemas.py`, access checks in
+  `guards.py`, and request dependencies in `dependencies.py`. Use controllers for ordinary HTTP
+  endpoints. Expose side-effect-free reads with GET; document the contract reason for another
+  method when GET is unsuitable.
 - Controllers must receive dependencies through `FromDishka[...]`, typed as the concrete use case
   class registered in Dishka.
 - Endpoint/controller modules must not define `@staticmethod`, `@classmethod`, or private helper
