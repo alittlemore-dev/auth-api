@@ -1,6 +1,6 @@
 import uuid
 from contextlib import suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from functools import partial
 
@@ -102,7 +102,16 @@ class CurrentAccountUseCase:
             params=params.normalized(),
         )
 
-    async def update_settings(self, *, username: str, settings: AccountSettings) -> CurrentAccount:
+    async def update_settings(
+        self,
+        *,
+        username: str,
+        settings: AccountSettings,
+        preserve_existing_time_zone: bool,
+    ) -> CurrentAccount:
+        if preserve_existing_time_zone:
+            current = await self.storage.get_current_account(username=username)
+            settings = replace(settings, time_zone=current.settings.time_zone)
         return await self.storage.update_settings(username=username, settings=settings)
 
     async def replace_avatar(

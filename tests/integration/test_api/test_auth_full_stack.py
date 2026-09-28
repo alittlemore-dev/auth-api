@@ -83,7 +83,7 @@ async def test_login_refresh_logout_revokes_session_and_access(
         "middleName": None,
         "gender": None,
         "hasAvatar": False,
-        "settings": {"language": "en", "theme": "light", "telegramBots": {}},
+        "settings": {"language": "en", "theme": "light", "timeZone": "UTC", "telegramBots": {}},
     }
     assert (
         auth_client.get("/api/auth/admin/accounts?page=1&pageSize=20", headers=bearer).status_code
@@ -207,13 +207,20 @@ async def test_telegram_account_setting_full_stack(
     assert login.status_code == 200
     bearer = {"Authorization": f"Bearer {login.json()['accessToken']}"}
     account_path = "/api/auth/account/me"
-    internal_path = "/api/auth/internal/telegram/personal-workspace/settings"
-    service_headers = {"X-Telegram-Service-Secret": "test-service-secret"}
+    internal_path = "/api/auth/internal/account/owner/settings"
+    service_headers = {"X-Internal-Service-Secret": "test-service-secret"}
 
     initial = auth_client.get(account_path, headers=bearer)
     assert initial.status_code == 200
     assert initial.json()["settings"]["telegramBots"] == {}
+    assert initial.json()["settings"]["timeZone"] == "UTC"
     assert initial.headers["cache-control"] == "no-store"
+    assert auth_client.get(internal_path, headers=service_headers).json() == {
+        "language": "en",
+        "theme": "light",
+        "timeZone": "UTC",
+        "telegramBots": {},
+    }
     assert (
         auth_client.put(
             f"{account_path}/settings",
@@ -221,6 +228,7 @@ async def test_telegram_account_setting_full_stack(
             json={
                 "language": "ru",
                 "theme": "dark",
+                "timeZone": "Asia/Yerevan",
                 "telegramBots": {"personal-workspace": {"enabled": True, "notify": True}},
             },
         ).status_code
@@ -230,21 +238,43 @@ async def test_telegram_account_setting_full_stack(
     assert updated.json()["settings"] == {
         "language": "ru",
         "theme": "dark",
+        "timeZone": "Asia/Yerevan",
         "telegramBots": {"personal-workspace": {"enabled": True, "notify": True}},
     }
 
-    internal = auth_client.get(
-        internal_path,
-        headers=service_headers,
-        params={"ownerUsername": "owner"},
-    )
+    internal = auth_client.get(internal_path, headers=service_headers)
     assert internal.status_code == 200
-    assert internal.json() == {"available": True, "enabled": True, "notify": True}
+    assert internal.json() == {
+        "language": "ru",
+        "theme": "dark",
+        "timeZone": "Asia/Yerevan",
+        "telegramBots": {"personal-workspace": {"enabled": True, "notify": True}},
+    }
     assert internal.headers["cache-control"] == "no-store"
-    unknown = auth_client.get(
-        internal_path,
-        headers=service_headers,
-        params={"ownerUsername": "unknown"},
+
+    replaced_without_zone = auth_client.put(
+        f"{account_path}/settings",
+        headers=bearer,
+        json={"theme": "light"},
     )
-    assert unknown.status_code == 200
-    assert unknown.json() == {"available": True, "enabled": False, "notify": False}
+    assert replaced_without_zone.status_code == 200
+    assert replaced_without_zone.json()["settings"] == {
+        "language": "en",
+        "theme": "light",
+        "timeZone": "Asia/Yerevan",
+        "telegramBots": {},
+    }
+    replaced_with_utc = auth_client.put(
+        f"{account_path}/settings",
+        headers=bearer,
+        json={"timeZone": "UTC"},
+    )
+    assert replaced_with_utc.status_code == 200
+    assert replaced_with_utc.json()["settings"]["timeZone"] == "UTC"
+
+    unknown = auth_client.get(
+        "/api/auth/internal/account/unknown/settings",
+        headers=service_headers,
+    )
+    assert unknown.status_code == 404
+    assert unknown.headers["cache-control"] == "no-store"

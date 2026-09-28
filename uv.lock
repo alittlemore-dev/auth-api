@@ -286,6 +286,7 @@ dependencies = [
     { name = "taskiq" },
     { name = "taskiq-redis" },
     { name = "types-aiobotocore-s3" },
+    { name = "tzdata" },
     { name = "ua-parser", extra = ["regex"] },
     { name = "verbose-http-exceptions", extra = ["litestar"] },
 ]
@@ -332,6 +333,7 @@ requires-dist = [
     { name = "taskiq", specifier = ">=0.12.4" },
     { name = "taskiq-redis", specifier = ">=1.2.3" },
     { name = "types-aiobotocore-s3", specifier = ">=3.9.0" },
+    { name = "tzdata", specifier = ">=2025.2" },
     { name = "ua-parser", extras = ["regex"], specifier = ">=1.0.2" },
     { name = "verbose-http-exceptions", extras = ["litestar"], specifier = ">=3.0.0" },
 ]

@@ -7,8 +7,8 @@ from litestar.handlers import BaseRouteHandler
 from infra.config.settings import settings
 
 
-def require_telegram_service_secret(connection: ASGIConnection, _: BaseRouteHandler) -> None:
+def require_internal_service_secret(connection: ASGIConnection, _: BaseRouteHandler) -> None:
     expected = settings.telegram.service_secret.get_secret_value()
-    supplied = connection.headers.get("X-Telegram-Service-Secret", "")
+    supplied = connection.headers.get("X-Internal-Service-Secret", "")
     if not expected or not hmac.compare_digest(supplied, expected):
         raise HTTPException(status_code=403)

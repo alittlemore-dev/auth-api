@@ -1,7 +1,8 @@
 from typing import Annotated
+from zoneinfo import ZoneInfo
 
 from litestar.datastructures.upload_file import UploadFile
-from pydantic import ConfigDict, Field, field_validator
+from pydantic import BeforeValidator, ConfigDict, Field, field_validator
 
 from core.account.avatar_schemas import AccountAvatarUpload
 from core.account.enums import AccountLanguageEnum, AccountThemeEnum, GenderEnum, TelegramBotId
@@ -16,6 +17,9 @@ from core.auth.enums import RoleEnum
 from core.schemas import UNSET, Secret, UnsetType
 from entrypoints.litestar.api.schemas import CamelCaseSchema
 from infra.config.constants import constants
+from infra.config.validators import validate_time_zone_identifier
+
+AccountTimeZone = Annotated[ZoneInfo, BeforeValidator(validate_time_zone_identifier)]
 
 
 class AccountAvatarUploadRequestSchema(CamelCaseSchema):
@@ -75,12 +79,23 @@ class AccountSettingsSchema(CamelCaseSchema):
 
     language: AccountLanguageEnum = AccountLanguageEnum.EN
     theme: AccountThemeEnum = AccountThemeEnum.LIGHT
+    time_zone: AccountTimeZone = Field(
+        default_factory=lambda: constants.account_time_zone.default,
+        description="IANA time zone identifier used for the account calendar and reminders.",
+        examples=["Asia/Yerevan"],
+        json_schema_extra={
+            "type": "string",
+            "format": "iana-time-zone",
+            "maxLength": constants.account_time_zone.max_iana_time_zone_length,
+        },
+    )
     telegram_bots: dict[TelegramBotId, TelegramBotSettingsSchema] = Field(default_factory=dict)
 
     def to_domain_schema(self) -> AccountSettings:
         return AccountSettings(
             language=self.language,
             theme=self.theme,
+            time_zone=self.time_zone,
             telegram_bots={
                 bot_id: TelegramBotSettings(enabled=value.enabled, notify=value.notify)
                 for bot_id, value in self.telegram_bots.items()
@@ -92,6 +107,7 @@ class AccountSettingsSchema(CamelCaseSchema):
         return cls(
             language=schema.language,
             theme=schema.theme,
+            time_zone=schema.time_zone,
             telegram_bots={
                 bot_id: TelegramBotSettingsSchema(enabled=value.enabled, notify=value.notify)
                 for bot_id, value in schema.telegram_bots.items()

@@ -5,6 +5,17 @@ from litestar import Litestar
 
 
 class TestOpenApiMetadata:
+    def test_account_time_zone_is_documented_as_iana_string(self, app: Litestar) -> None:
+        schema = app.openapi_schema.to_schema()
+        settings_schema = schema["components"]["schemas"]["AccountSettingsSchema"]
+        time_zone_schema = settings_schema["properties"]["timeZone"]
+
+        assert time_zone_schema["type"] == "string"
+        assert time_zone_schema["format"] == "iana-time-zone"
+        assert time_zone_schema["maxLength"] == 255
+        assert "IANA" in time_zone_schema["description"]
+        assert "Asia/Yerevan" in time_zone_schema["examples"]
+
     def test_public_openapi_schema_excludes_admin_routes(self, app: Litestar) -> None:
         schema = app.openapi_schema.to_schema()
         admin_paths = sorted(path for path in schema["paths"] if path.startswith("/api/auth/admin"))

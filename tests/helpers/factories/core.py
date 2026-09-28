@@ -1,8 +1,9 @@
 import hashlib
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from core.account.enums import GenderEnum
-from core.account.schemas import CurrentAccount, ManagedAccount, ManagedAccounts
+from core.account.schemas import AccountSettings, CurrentAccount, ManagedAccount, ManagedAccounts
 from core.auth.enums import RoleEnum
 from core.auth.schemas import JwtUser, User
 from core.auth.types import Token
@@ -68,6 +69,7 @@ class CoreFactoryHelper:
             middle_name=Secret(middle_name) if middle_name is not None else None,
             gender=Secret(gender) if gender is not None else None,
             avatar_object_name=avatar_object_name,
+            settings=AccountSettings(time_zone=ZoneInfo("UTC")),
         )
 
     @classmethod

@@ -102,8 +102,12 @@ class AuthUseCase:
             ),
         )
         return AuthLoginResult(
-            access_token=self._issue_access_token(
-                payload=AccessTokenPayload(username=user.username, session_id=session.id),
+            access_token=AccessTokenResult(
+                token=Token(
+                    self.token_handler.encode_token(
+                        payload=AccessTokenPayload(username=user.username, session_id=session.id),
+                    ),
+                ),
                 expires_in_seconds=config.access_token_expires_in_seconds,
             ),
             session=AuthSessionCredentials(
@@ -208,8 +212,12 @@ class AuthUseCase:
         except AuthSessionNotFoundError as exc:
             raise UnauthorizedError from exc
         return AuthRefreshAccessTokenResult(
-            access_token=self._issue_access_token(
-                payload=AccessTokenPayload(username=user.username, session_id=session.id),
+            access_token=AccessTokenResult(
+                token=Token(
+                    self.token_handler.encode_token(
+                        payload=AccessTokenPayload(username=user.username, session_id=session.id),
+                    ),
+                ),
                 expires_in_seconds=config.access_token_expires_in_seconds,
             ),
             session=AuthSessionCredentials(
@@ -239,22 +247,6 @@ class AuthUseCase:
         await self.token_revocation_storage.revoke_token(
             token=params.token,
             expires_in_seconds=remaining_seconds,
-        )
-
-    def _issue_access_token(
-        self,
-        *,
-        payload: AccessTokenPayload,
-        expires_in_seconds: int,
-    ) -> AccessTokenResult:
-        token = Token(
-            self.token_handler.encode_token(
-                payload=payload,
-            ),
-        )
-        return AccessTokenResult(
-            token=token,
-            expires_in_seconds=expires_in_seconds,
         )
 
 

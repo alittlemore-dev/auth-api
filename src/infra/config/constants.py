@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Literal
+from zoneinfo import ZoneInfo
 
 
 class PathConstants:
@@ -49,6 +50,12 @@ class AccountAvatarConstants:
     orphan_retention_seconds: int = 24 * 60 * 60
 
 
+class AccountTimeZoneConstants:
+    invalid_iana_time_zone_message: str = "Invalid IANA time zone"
+    max_iana_time_zone_length: int = 255
+    default: ZoneInfo = ZoneInfo("UTC")
+
+
 class AdminValidationConstants:
     account_username_pattern: str = r"^[A-Za-z0-9._]+$"
     account_username_min_length: int = 3
@@ -73,6 +80,7 @@ class Constants:
     valkey: ValkeyConstants = ValkeyConstants()
     taskiq: TaskiqConstants = TaskiqConstants()
     account_avatar: AccountAvatarConstants = AccountAvatarConstants()
+    account_time_zone: AccountTimeZoneConstants = AccountTimeZoneConstants()
     admin_validation: AdminValidationConstants = AdminValidationConstants()
     auth: AuthConstants = AuthConstants()
 

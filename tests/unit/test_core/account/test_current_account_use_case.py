@@ -1,4 +1,6 @@
+from dataclasses import replace
 from unittest.mock import Mock
+from zoneinfo import ZoneInfo
 
 import pytest_asyncio
 
@@ -6,8 +8,8 @@ from core.account.clients import (
     AccountAvatarClient,
     AccountAvatarProcessor,
 )
-from core.account.enums import GenderEnum
-from core.account.schemas import CurrentAccountUpdateParams
+from core.account.enums import AccountLanguageEnum, GenderEnum
+from core.account.schemas import AccountSettings, CurrentAccountUpdateParams
 from core.account.storages import CurrentAccountStorage
 from core.account.use_cases import CurrentAccountUseCase
 from core.schemas import UNSET, Secret
@@ -34,6 +36,46 @@ class TestCurrentAccountUseCase(TestCase):
 
         assert result == expected
         self.storage.get_current_account.assert_called_once_with(username="Admin")
+
+    async def test_omitted_time_zone_preserves_current_non_utc_zone(self) -> None:
+        current = replace(
+            self.factory.core.current_account(username="test"),
+            settings=AccountSettings(time_zone=ZoneInfo("Asia/Yerevan")),
+        )
+        self.storage.get_current_account.return_value = current
+        requested = AccountSettings(
+            time_zone=ZoneInfo("UTC"),
+            language=AccountLanguageEnum.RU,
+        )
+        expected = replace(requested, time_zone=ZoneInfo("Asia/Yerevan"))
+        self.storage.update_settings.return_value = replace(current, settings=expected)
+
+        result = await self.use_case.update_settings(
+            username="test",
+            settings=requested,
+            preserve_existing_time_zone=True,
+        )
+
+        assert result.settings == expected
+        self.storage.get_current_account.assert_called_once_with(username="test")
+        self.storage.update_settings.assert_called_once_with(username="test", settings=expected)
+
+    async def test_explicit_utc_replaces_current_zone_without_preliminary_read(self) -> None:
+        requested = AccountSettings(time_zone=ZoneInfo("UTC"))
+        self.storage.update_settings.return_value = replace(
+            self.factory.core.current_account(username="test"),
+            settings=requested,
+        )
+
+        result = await self.use_case.update_settings(
+            username="test",
+            settings=requested,
+            preserve_existing_time_zone=False,
+        )
+
+        assert result.settings.time_zone == ZoneInfo("UTC")
+        self.storage.get_current_account.assert_not_called()
+        self.storage.update_settings.assert_called_once_with(username="test", settings=requested)
 
     async def test_updates_only_explicit_fields_and_normalizes_names(self) -> None:
         expected = self.factory.core.current_account(

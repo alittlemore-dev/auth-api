@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from math import ceil
 from typing import Self, cast
+from zoneinfo import ZoneInfo
 
 from core.account.enums import (
     AccountLanguageEnum,
@@ -18,13 +19,6 @@ from core.auth.enums import AuthSessionAuthMethodEnum, RoleEnum
 from core.auth.schemas import AuthSession, AuthSessionClientMetadata
 from core.schemas import UNSET, Secret, UnsetType, ValuedDataclass
 
-SELF_FORBIDDEN_MANAGED_ACCOUNT_ACTIONS = (
-    ManagedAccountActionEnum.UPDATE_ROLE,
-    ManagedAccountActionEnum.ACTIVATE,
-    ManagedAccountActionEnum.DEACTIVATE,
-    ManagedAccountActionEnum.DELETE,
-)
-
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class TelegramBotSettings:
@@ -34,6 +28,7 @@ class TelegramBotSettings:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class AccountSettings:
+    time_zone: ZoneInfo
     language: AccountLanguageEnum = AccountLanguageEnum.EN
     theme: AccountThemeEnum = AccountThemeEnum.LIGHT
     telegram_bots: dict[TelegramBotId, TelegramBotSettings] = field(default_factory=dict)
@@ -48,7 +43,7 @@ class CurrentAccount:
     middle_name: Secret[str] | None
     gender: Secret[GenderEnum] | None
     avatar_object_name: str | None
-    settings: AccountSettings = field(default_factory=AccountSettings)
+    settings: AccountSettings
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -99,7 +94,7 @@ class ManagedAccount:
         action: ManagedAccountActionEnum,
     ) -> None:
         if (
-            action in SELF_FORBIDDEN_MANAGED_ACCOUNT_ACTIONS
+            action.forbids_self_management
             and self.username.casefold() == target.username.casefold()
         ):
             raise SelfAccountActionForbiddenError

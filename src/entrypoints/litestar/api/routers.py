@@ -1,13 +1,13 @@
 from litestar import Router
 
 from entrypoints.litestar.api.account.endpoints import api_router as account_router
+from entrypoints.litestar.api.account.internal.endpoints import (
+    api_router as account_internal_router,
+)
 from entrypoints.litestar.api.accounts.endpoints import admin_router as accounts_admin_router
 from entrypoints.litestar.api.admin_tools.endpoints import admin_router as admin_tools_router
 from entrypoints.litestar.api.auth.endpoints import api_router as auth_router
 from entrypoints.litestar.api.healthcheck.endpoints import api_router as healthcheck_router
-from entrypoints.litestar.api.telegram.internal.endpoints import (
-    api_router as telegram_internal_router,
-)
 
 admin_api_router = Router(
     "/admin",
@@ -25,7 +25,7 @@ api_router = Router(
         healthcheck_router,
         auth_router,
         account_router,
-        telegram_internal_router,
+        account_internal_router,
         admin_api_router,
     ],
     tags=["api"],

@@ -1,9 +1,12 @@
+from dataclasses import replace
+from zoneinfo import ZoneInfo
+
 import pytest_asyncio
 from httpx import codes
 
 from core import schemas as core_schemas
 from core.account.enums import GenderEnum
-from core.account.schemas import CurrentAccountUpdateParams
+from core.account.schemas import AccountSettings, CurrentAccountUpdateParams
 from core.auth.enums import RoleEnum
 from core.schemas import Secret
 from entrypoints.litestar.api.account.schemas import CurrentAccountUpdateRequestSchema
@@ -39,7 +42,12 @@ class TestCurrentAccountAPI(ApiTestCase):
             "middleName": None,
             "gender": "male",
             "hasAvatar": True,
-            "settings": {"language": "en", "theme": "light", "telegramBots": {}},
+            "settings": {
+                "language": "en",
+                "theme": "light",
+                "timeZone": "UTC",
+                "telegramBots": {},
+            },
         }
         self.use_case.get_account.assert_called_once_with(username="test")
 
@@ -112,48 +120,91 @@ class TestCurrentAccountAPI(ApiTestCase):
         assert set(ManagedAccountResponseSchema.model_fields) == {"username", "role", "is_active"}
 
     def test_replaces_settings(self) -> None:
-        self.use_case.update_settings.return_value = self.factory.core.current_account()
+        self.use_case.update_settings.return_value = replace(
+            self.factory.core.current_account(),
+            settings=AccountSettings(time_zone=ZoneInfo("Asia/Yerevan")),
+        )
         response = self.api.client.put(
             "/api/auth/account/me/settings",
             json={
                 "language": "ru",
                 "theme": "dark",
+                "timeZone": "Asia/Yerevan",
                 "telegramBots": {"personal-workspace": {"enabled": True}},
             },
         )
         assert response.status_code == codes.OK
         assert response.headers["Cache-Control"] == "no-store"
+        assert response.json()["settings"]["timeZone"] == "Asia/Yerevan"
         params = self.use_case.update_settings.call_args.kwargs
         assert params["username"] == "test"
         assert params["settings"].language == "ru"
         assert params["settings"].theme == "dark"
+        assert params["settings"].time_zone == ZoneInfo("Asia/Yerevan")
         assert params["settings"].telegram_bots["personal-workspace"].enabled
         assert not params["settings"].telegram_bots["personal-workspace"].notify
+        assert params["preserve_existing_time_zone"] is False
 
     def test_settings_requires_authentication(self) -> None:
-        response = self.no_auth_api.client.put("/api/auth/account/me/settings", json={})
+        response = self.no_auth_api.client.put(
+            "/api/auth/account/me/settings",
+            json={"timeZone": "UTC"},
+        )
         assert response.status_code == codes.UNAUTHORIZED
 
     def test_settings_rejects_null(self) -> None:
-        response = self.api.client.put("/api/auth/account/me/settings", json={"theme": None})
+        response = self.api.client.put(
+            "/api/auth/account/me/settings",
+            json={"theme": None, "timeZone": "UTC"},
+        )
         assert response.status_code == codes.BAD_REQUEST
 
-    def test_settings_omitted_fields_use_defaults(self) -> None:
+    def test_settings_omitted_other_fields_use_defaults(self) -> None:
         self.use_case.update_settings.return_value = self.factory.core.current_account()
-        response = self.api.client.put("/api/auth/account/me/settings", json={"theme": "dark"})
+        response = self.api.client.put(
+            "/api/auth/account/me/settings",
+            json={"theme": "dark", "timeZone": "Asia/Yerevan"},
+        )
         assert response.status_code == codes.OK
         settings = self.use_case.update_settings.call_args.kwargs["settings"]
         assert settings.language == "en"
         assert settings.theme == "dark"
+        assert settings.time_zone == ZoneInfo("Asia/Yerevan")
+        assert (
+            self.use_case.update_settings.call_args.kwargs["preserve_existing_time_zone"] is False
+        )
+
+    def test_settings_omits_time_zone_to_preserve_current_value(self) -> None:
+        self.use_case.update_settings.return_value = replace(
+            self.factory.core.current_account(),
+            settings=AccountSettings(time_zone=ZoneInfo("Asia/Yerevan")),
+        )
+        response = self.api.client.put(
+            "/api/auth/account/me/settings",
+            json={"theme": "dark"},
+        )
+        assert response.status_code == codes.OK
+        assert response.json()["settings"]["timeZone"] == "Asia/Yerevan"
+        params = self.use_case.update_settings.call_args.kwargs
+        assert params["preserve_existing_time_zone"] is True
+        assert params["settings"].theme == "dark"
+        assert params["settings"].language == "en"
+        assert params["settings"].telegram_bots == {}
 
     def test_settings_rejects_invalid_values(self) -> None:
         for data in (
             {"language": "fr"},
             {"theme": "system"},
             {"language": None},
+            {"timeZone": "Mars/Olympus_Mons"},
+            {"timeZone": ""},
+            {"timeZone": None},
             {"unknown": True},
             {"telegramBots": {"unknown-bot": {"enabled": True}}},
         ):
-            response = self.api.client.put("/api/auth/account/me/settings", json=data)
+            response = self.api.client.put(
+                "/api/auth/account/me/settings",
+                json={"timeZone": "UTC", **data},
+            )
             assert response.status_code == codes.BAD_REQUEST
         self.use_case.update_settings.assert_not_called()

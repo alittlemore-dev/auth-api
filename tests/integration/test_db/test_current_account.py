@@ -1,4 +1,6 @@
 # ruff: noqa: S106
+from zoneinfo import ZoneInfo
+
 import pytest
 import pytest_asyncio
 from sqlalchemy import text
@@ -44,6 +46,7 @@ class TestCurrentAccountStorage(StorageTestCase):
             middle_name=Secret("Sergeevich"),
             gender=Secret(GenderEnum.MALE),
             avatar_object_name=None,
+            settings=AccountSettings(time_zone=ZoneInfo("UTC")),
         )
         raw_row = (
             (
@@ -139,7 +142,11 @@ class TestCurrentAccountStorage(StorageTestCase):
             username="profile-user",
             params=CurrentAccountUpdateParams(first_name=Secret("Name")),
         )
-        settings = AccountSettings(language=AccountLanguageEnum.RU, theme=AccountThemeEnum.DARK)
+        settings = AccountSettings(
+            time_zone=ZoneInfo("UTC"),
+            language=AccountLanguageEnum.RU,
+            theme=AccountThemeEnum.DARK,
+        )
         result = await self.storage.update_settings(username="profile-user", settings=settings)
         assert result.settings == settings
         assert result.first_name == Secret("Name")
@@ -147,7 +154,7 @@ class TestCurrentAccountStorage(StorageTestCase):
         loaded = await self.storage.get_current_account(username="profile-user")
         assert loaded.settings == settings
         other = await self.storage.get_current_account(username="other-user")
-        assert other.settings == AccountSettings()
+        assert other.settings == AccountSettings(time_zone=ZoneInfo("UTC"))
         avatar = await self.storage.update_avatar_object_name(
             username="profile-user", object_name="avatar.webp"
         )

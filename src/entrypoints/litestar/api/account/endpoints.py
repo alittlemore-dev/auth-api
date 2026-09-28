@@ -79,8 +79,13 @@ class AccountApiController(Controller):
             AccountSettingsSchema,
             api_json_body(
                 title="Account settings replacement",
-                description="Replace all preferences; omitted fields use schema defaults.",
-                examples=({"language": "en", "theme": "light", "telegramBots": {}},),
+                description=(
+                    "Replace preferences; omitted timeZone keeps its current value, while "
+                    "other omitted fields use defaults."
+                ),
+                examples=(
+                    {"language": "en", "theme": "light", "timeZone": "UTC", "telegramBots": {}},
+                ),
             ),
         ],
     ) -> Response[CurrentAccountResponseSchema]:
@@ -89,6 +94,7 @@ class AccountApiController(Controller):
         account = await use_case.update_settings(
             username=request.user.username,
             settings=data.to_domain_schema(),
+            preserve_existing_time_zone="time_zone" not in data.model_fields_set,
         )
         return create_current_account_response(account=account)
 

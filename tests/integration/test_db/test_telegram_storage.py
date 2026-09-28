@@ -1,4 +1,6 @@
 # ruff: noqa: S106
+from zoneinfo import ZoneInfo
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,6 +30,7 @@ class TestAccountSettingsStorage(StorageTestCase):
             settings=AccountSettings(
                 language=AccountLanguageEnum.RU,
                 theme=AccountThemeEnum.DARK,
+                time_zone=ZoneInfo("Asia/Yerevan"),
                 telegram_bots={
                     TelegramBotId.PERSONAL_WORKSPACE: TelegramBotSettings(enabled=True, notify=True)
                 },
@@ -41,7 +44,11 @@ class TestAccountSettingsStorage(StorageTestCase):
         assert user.settings.telegram_bots[TelegramBotId.PERSONAL_WORKSPACE].notify
         assert user.settings.language == AccountLanguageEnum.RU
         assert user.settings.theme == AccountThemeEnum.DARK
-        await account_storage.update_settings(username="anna", settings=AccountSettings())
+        assert user.settings.time_zone == ZoneInfo("Asia/Yerevan")
+        await account_storage.update_settings(
+            username="anna",
+            settings=AccountSettings(time_zone=ZoneInfo("UTC")),
+        )
         session.expire_all()
         account = await account_storage.get_current_account(username="anna")
-        assert account.settings == AccountSettings()
+        assert account.settings == AccountSettings(time_zone=ZoneInfo("UTC"))

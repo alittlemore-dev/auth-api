@@ -30,6 +30,7 @@ dependencies = [
     "pillow>=12.3.0",
     "aiobotocore>=3.9.0",
     "types-aiobotocore-s3>=3.9.0",
+    "tzdata>=2025.2",
 ]
 
 [dependency-groups]

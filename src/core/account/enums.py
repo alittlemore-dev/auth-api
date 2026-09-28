@@ -14,6 +14,15 @@ class ManagedAccountActionEnum(StrEnum):
     DEACTIVATE = "deactivate"
     DELETE = "delete"
 
+    @property
+    def forbids_self_management(self) -> bool:
+        return self in {
+            ManagedAccountActionEnum.UPDATE_ROLE,
+            ManagedAccountActionEnum.ACTIVATE,
+            ManagedAccountActionEnum.DEACTIVATE,
+            ManagedAccountActionEnum.DELETE,
+        }
+
 
 class AccountLanguageEnum(StrEnum):
     EN = "en"
