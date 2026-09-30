@@ -54,6 +54,7 @@ local = [
 
 [tool.uv]
 package = false
+constraint-dependencies = ["urllib3>=2.8.0", "virtualenv>=21.7.13"]
 
 [tool.ruff]
 output-format = "concise"
