@@ -14,11 +14,12 @@
   `PUT /api/auth/account/me/settings`, which replaces the full settings object. Check that every
   field survives API-to-domain-to-persistence conversion and the reverse path. Do not create a
   separate table, storage, use case, or public endpoint merely to update one preference.
+- Extend the complete typed public/internal settings contracts instead of adding one endpoint per
+  preference. Internal consumers read the full settings object by username through
+  `GET /api/auth/internal/account/{username}/settings`; enforce service authentication in a guard
+  or dependency before the handler runs.
 - Identify supported Telegram bots with `TelegramBotId` rather than arbitrary string keys in
-  account settings. Bot services read their scoped preferences through the protected
-  `GET /api/auth/internal/telegram/{telegram_bot_id}/settings`; enforce service authentication in
-  a guard or dependency before the handler runs. Keep bot invitations and Telegram user/chat links
-  in the owning bot service.
+  account settings. Keep bot invitations and Telegram user/chat links in the owning bot service.
 
 ## Architecture and security
 
