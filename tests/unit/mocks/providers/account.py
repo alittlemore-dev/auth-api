@@ -5,12 +5,17 @@ from dishka import Provider, Scope, provide
 from core.account.clients import (
     AccountAvatarClient,
     AccountAvatarProcessor,
+    TelegramBotStatusClient,
 )
 from core.account.storages import CurrentAccountStorage, ManagedAccountStorage, UserAccountStorage
 from core.account.use_cases import AccountsUseCase, CurrentAccountUseCase
 
 
 class MockUserAccountProvider(Provider):
+    @provide(scope=Scope.APP)
+    def provide_telegram_status_client(self) -> TelegramBotStatusClient:
+        return Mock(spec=TelegramBotStatusClient)
+
     @provide(scope=Scope.APP)
     async def provide_account_avatar_client(self) -> AccountAvatarClient:
         return Mock(spec=AccountAvatarClient)

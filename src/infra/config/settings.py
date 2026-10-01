@@ -1,7 +1,7 @@
 from ipaddress import IPv4Address
 from typing import Literal
 
-from pydantic import PositiveInt, SecretStr, model_validator
+from pydantic import AnyHttpUrl, Field, PositiveInt, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from core.account.enums import TelegramBotId
@@ -130,6 +130,7 @@ class TelegramSettings(ProjectBaseSettings):
 
     available: bool = False
     service_secret: SecretStrExtended = SecretStrExtended("")
+    personal_workspace_status_url: AnyHttpUrl = Field(repr=False)
 
     def is_available_for(self, bot_id: TelegramBotId) -> bool:
         return bot_id == TelegramBotId.PERSONAL_WORKSPACE and self.available

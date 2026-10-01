@@ -75,6 +75,12 @@ class AuthConstants:
     session_expiring_soon_days: int = 7
 
 
+class TelegramConstants:
+    status_timeout_seconds: int = 3
+    max_status_response_bytes: int = 1024
+    service_auth_header: Literal["X-Telegram-Service-Secret"] = "X-Telegram-Service-Secret"
+
+
 class Constants:
     path: PathConstants = PathConstants()
     valkey: ValkeyConstants = ValkeyConstants()
@@ -83,6 +89,7 @@ class Constants:
     account_time_zone: AccountTimeZoneConstants = AccountTimeZoneConstants()
     admin_validation: AdminValidationConstants = AdminValidationConstants()
     auth: AuthConstants = AuthConstants()
+    telegram: TelegramConstants = TelegramConstants()
 
 
 constants = Constants()

@@ -6,6 +6,9 @@ async def set_account_settings_response_no_store(message: Message, scope: Scope)
     if message["type"] != "http.response.start":
         return
     path = scope.get("path", "")
-    if not (path.startswith("/api/auth/internal/account/") and path.endswith("/settings")):
+    if not (
+        path == "/api/auth/account/me/settings"
+        or (path.startswith("/api/auth/internal/account/") and path.endswith("/settings"))
+    ):
         return
     MutableScopeHeaders.from_message(message)["Cache-Control"] = "no-store"

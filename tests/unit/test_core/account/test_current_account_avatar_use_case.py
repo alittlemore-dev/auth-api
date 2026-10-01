@@ -11,6 +11,7 @@ from core.account.avatar_schemas import (
 from core.account.clients import (
     AccountAvatarClient,
     AccountAvatarProcessor,
+    TelegramBotStatusClient,
 )
 from core.account.exceptions import AccountAvatarNotFoundError
 from core.account.storages import CurrentAccountStorage
@@ -31,6 +32,7 @@ class TestCurrentAccountAvatarUseCase(TestCase):
             storage=self.storage,
             avatar_client=self.client,
             avatar_processor=self.processor,
+            telegram_status_client=Mock(spec=TelegramBotStatusClient),
             rollback_actions=self.rollback_actions,
         )
 

@@ -2,14 +2,17 @@ from dataclasses import replace
 from unittest.mock import Mock
 from zoneinfo import ZoneInfo
 
+import pytest
 import pytest_asyncio
 
 from core.account.clients import (
     AccountAvatarClient,
     AccountAvatarProcessor,
+    TelegramBotStatusClient,
 )
-from core.account.enums import AccountLanguageEnum, GenderEnum
-from core.account.schemas import AccountSettings, CurrentAccountUpdateParams
+from core.account.enums import AccountLanguageEnum, GenderEnum, TelegramBotId
+from core.account.exceptions import TelegramBotUnavailableError
+from core.account.schemas import AccountSettings, CurrentAccountUpdateParams, TelegramBotSettings
 from core.account.storages import CurrentAccountStorage
 from core.account.use_cases import CurrentAccountUseCase
 from core.schemas import UNSET, Secret
@@ -21,10 +24,13 @@ class TestCurrentAccountUseCase(TestCase):
     @pytest_asyncio.fixture(autouse=True, loop_scope="session")
     async def setup(self) -> None:
         self.storage = Mock(spec=CurrentAccountStorage)
+        self.storage.get_current_account.return_value = self.factory.core.current_account()
+        self.telegram_status = Mock(spec=TelegramBotStatusClient)
         self.use_case = CurrentAccountUseCase(
             storage=self.storage,
             avatar_client=Mock(spec=AccountAvatarClient),
             avatar_processor=Mock(spec=AccountAvatarProcessor),
+            telegram_status_client=self.telegram_status,
             rollback_actions=RollbackActions(actions=[]),
         )
 
@@ -60,7 +66,7 @@ class TestCurrentAccountUseCase(TestCase):
         self.storage.get_current_account.assert_called_once_with(username="test")
         self.storage.update_settings.assert_called_once_with(username="test", settings=expected)
 
-    async def test_explicit_utc_replaces_current_zone_without_preliminary_read(self) -> None:
+    async def test_explicit_utc_replaces_current_zone(self) -> None:
         requested = AccountSettings(time_zone=ZoneInfo("UTC"))
         self.storage.update_settings.return_value = replace(
             self.factory.core.current_account(username="test"),
@@ -74,7 +80,7 @@ class TestCurrentAccountUseCase(TestCase):
         )
 
         assert result.settings.time_zone == ZoneInfo("UTC")
-        self.storage.get_current_account.assert_not_called()
+        self.storage.get_current_account.assert_called_once_with(username="test")
         self.storage.update_settings.assert_called_once_with(username="test", settings=requested)
 
     async def test_updates_only_explicit_fields_and_normalizes_names(self) -> None:
@@ -123,3 +129,73 @@ class TestCurrentAccountUseCase(TestCase):
         assert params.last_name is UNSET
         assert params.middle_name is UNSET
         assert params.gender is UNSET
+
+    @pytest.mark.parametrize(
+        ("current_bots", "requested_bots"),
+        [
+            ({}, {TelegramBotId.PERSONAL_WORKSPACE: TelegramBotSettings(enabled=True)}),
+            ({TelegramBotId.PERSONAL_WORKSPACE: TelegramBotSettings(enabled=True)}, {}),
+            (
+                {TelegramBotId.PERSONAL_WORKSPACE: TelegramBotSettings(enabled=True)},
+                {TelegramBotId.PERSONAL_WORKSPACE: TelegramBotSettings(enabled=True, notify=True)},
+            ),
+        ],
+    )
+    async def test_unready_bot_preference_changes_do_not_persist(
+        self,
+        current_bots: dict[TelegramBotId, TelegramBotSettings],
+        requested_bots: dict[TelegramBotId, TelegramBotSettings],
+    ) -> None:
+        self.storage.get_current_account.return_value = replace(
+            self.factory.core.current_account(),
+            settings=AccountSettings(time_zone=ZoneInfo("UTC"), telegram_bots=current_bots),
+        )
+        self.telegram_status.is_ready.return_value = False
+
+        with pytest.raises(TelegramBotUnavailableError):
+            await self.use_case.update_settings(
+                username="test",
+                settings=AccountSettings(time_zone=ZoneInfo("UTC"), telegram_bots=requested_bots),
+                preserve_existing_time_zone=False,
+            )
+
+        self.telegram_status.is_ready.assert_awaited_once_with()
+        self.storage.update_settings.assert_not_awaited()
+
+    async def test_unchanged_bot_preferences_save_during_outage(self) -> None:
+        bots = {TelegramBotId.PERSONAL_WORKSPACE: TelegramBotSettings(enabled=True, notify=True)}
+        self.storage.get_current_account.return_value = replace(
+            self.factory.core.current_account(),
+            settings=AccountSettings(time_zone=ZoneInfo("UTC"), telegram_bots=bots),
+        )
+        self.telegram_status.is_ready.return_value = False
+        requested = AccountSettings(
+            time_zone=ZoneInfo("Asia/Yerevan"),
+            language=AccountLanguageEnum.RU,
+            telegram_bots=bots,
+        )
+
+        await self.use_case.update_settings(
+            username="test",
+            settings=requested,
+            preserve_existing_time_zone=False,
+        )
+
+        self.telegram_status.is_ready.assert_not_awaited()
+        self.storage.update_settings.assert_awaited_once_with(username="test", settings=requested)
+
+    async def test_ready_bot_preference_change_persists(self) -> None:
+        self.telegram_status.is_ready.return_value = True
+        requested = AccountSettings(
+            time_zone=ZoneInfo("UTC"),
+            telegram_bots={TelegramBotId.PERSONAL_WORKSPACE: TelegramBotSettings(enabled=True)},
+        )
+
+        await self.use_case.update_settings(
+            username="test",
+            settings=requested,
+            preserve_existing_time_zone=False,
+        )
+
+        self.telegram_status.is_ready.assert_awaited_once_with()
+        self.storage.update_settings.assert_awaited_once_with(username="test", settings=requested)

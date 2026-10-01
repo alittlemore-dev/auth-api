@@ -3,6 +3,7 @@ from typing import cast
 
 from aiobotocore.config import AioConfig
 from aiobotocore.session import get_session
+from aiohttp import ClientSession, DummyCookieJar
 from dishka import Provider, Scope, provide
 from sqlalchemy.ext.asyncio import AsyncSession
 from types_aiobotocore_s3.client import S3Client
@@ -11,6 +12,7 @@ from core.account.avatar_schemas import AvatarOrphanCleanupUseCaseConfig
 from core.account.clients import (
     AccountAvatarClient,
     AccountAvatarProcessor,
+    TelegramBotStatusClient,
 )
 from core.account.storages import CurrentAccountStorage, ManagedAccountStorage, UserAccountStorage
 from core.account.use_cases import (
@@ -23,12 +25,27 @@ from core.auth.storages import AuthSessionStorage
 from infra.config.constants import constants
 from infra.config.settings import settings
 from infra.files.account_avatar_processor import PillowAccountAvatarProcessor
+from infra.http.telegram_status_client import HttpTelegramBotStatusClient
 from infra.post_commit_actions import RollbackActions
 from infra.postgresql.storages.users import UserAccountDatabaseStorage
 from infra.s3.account_avatar_client import S3AccountAvatarClient
 
 
 class UserAccountProvider(Provider):
+    @provide(scope=Scope.APP)
+    async def provide_telegram_status_session(self) -> AsyncIterator[ClientSession]:
+        async with ClientSession(cookie_jar=DummyCookieJar(), trust_env=False) as session:
+            yield session
+
+    @provide(scope=Scope.APP)
+    def provide_telegram_status_client(self, session: ClientSession) -> TelegramBotStatusClient:
+        return HttpTelegramBotStatusClient(
+            session=session,
+            status_url=str(settings.telegram.personal_workspace_status_url),
+            service_secret=settings.telegram.service_secret.get_secret_value(),
+            available=settings.telegram.available,
+        )
+
     @provide(scope=Scope.APP)
     async def provide_s3_client(self) -> AsyncIterator[S3Client]:
         config = AioConfig(
@@ -104,12 +121,14 @@ class UserAccountProvider(Provider):
         avatar_client: AccountAvatarClient,
         avatar_processor: AccountAvatarProcessor,
         rollback_actions: RollbackActions,
+        telegram_status_client: TelegramBotStatusClient,
     ) -> CurrentAccountUseCase:
         return CurrentAccountUseCase(
             storage=storage,
             avatar_client=avatar_client,
             avatar_processor=avatar_processor,
             rollback_actions=rollback_actions,
+            telegram_status_client=telegram_status_client,
         )
 
     @provide(scope=Scope.REQUEST)

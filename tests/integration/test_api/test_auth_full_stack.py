@@ -1,4 +1,5 @@
 from collections.abc import AsyncGenerator
+from unittest.mock import Mock
 
 import pytest
 import pytest_asyncio
@@ -9,6 +10,7 @@ from litestar.testing import TestClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.account.clients import TelegramBotStatusClient
 from core.auth.enums import RoleEnum
 from core.auth.schemas import AccessTokenPayload
 from core.auth.storages import TokenRevocationStorage
@@ -22,14 +24,29 @@ from infra.valkey.storages import ValkeyTokenRevocationStorage
 
 
 class IntegrationRevocationProvider(Provider):
-    # Only the external Valkey transport is replaced; HTTP, crypto, use cases and DB are real.
+    def __init__(self, telegram_status: Mock) -> None:
+        super().__init__()
+        self.telegram_status = telegram_status
+
+    @provide(scope=Scope.APP, override=True)
+    def telegram_status_client(self) -> TelegramBotStatusClient:
+        return self.telegram_status
+
+    # External transports are replaced; HTTP, crypto, use cases and DB are real.
     @provide(scope=Scope.APP, override=True)
     def revocations(self) -> TokenRevocationStorage:
         return ValkeyTokenRevocationStorage(store=MemoryStore())
 
 
+@pytest.fixture
+def telegram_status() -> Mock:
+    client = Mock(spec=TelegramBotStatusClient)
+    client.is_ready.return_value = True
+    return client
+
+
 @pytest_asyncio.fixture
-async def auth_client(session: AsyncSession) -> AsyncGenerator[TestClient]:
+async def auth_client(session: AsyncSession, telegram_status: Mock) -> AsyncGenerator[TestClient]:
     session.add(
         UserModel(
             username="owner",
@@ -39,7 +56,10 @@ async def auth_client(session: AsyncSession) -> AsyncGenerator[TestClient]:
         )
     )
     await session.commit()
-    container = make_async_container(*get_providers(), IntegrationRevocationProvider())
+    container = make_async_container(
+        *get_providers(),
+        IntegrationRevocationProvider(telegram_status),
+    )
     app = create_litestar_app(
         lifespan=[],
         container=container,
@@ -191,6 +211,7 @@ async def test_verify_access_token_full_stack(
 
 
 async def test_telegram_account_setting_full_stack(
+    telegram_status: Mock,
     auth_client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -252,6 +273,33 @@ async def test_telegram_account_setting_full_stack(
     }
     assert internal.headers["cache-control"] == "no-store"
 
+    telegram_status.is_ready.return_value = False
+    rejected = auth_client.put(
+        f"{account_path}/settings",
+        headers=bearer,
+        json={"theme": "light", "telegramBots": {}},
+    )
+    assert rejected.status_code == 503
+    assert rejected.json()["message"] == "Telegram bot is unavailable"
+    assert rejected.headers["cache-control"] == "no-store"
+    assert auth_client.get(account_path, headers=bearer).json() == updated.json()
+    assert auth_client.get(internal_path, headers=service_headers).json() == internal.json()
+    telegram_status.is_ready.reset_mock()
+    unchanged_bot_preferences = auth_client.put(
+        f"{account_path}/settings",
+        headers=bearer,
+        json={
+            "language": "en",
+            "theme": "light",
+            "timeZone": "Europe/London",
+            "telegramBots": {"personal-workspace": {"enabled": True, "notify": True}},
+        },
+    )
+    assert unchanged_bot_preferences.status_code == 200
+    assert unchanged_bot_preferences.json()["settings"]["timeZone"] == "Europe/London"
+    telegram_status.is_ready.assert_not_awaited()
+    telegram_status.is_ready.return_value = True
+
     replaced_without_zone = auth_client.put(
         f"{account_path}/settings",
         headers=bearer,
@@ -261,7 +309,7 @@ async def test_telegram_account_setting_full_stack(
     assert replaced_without_zone.json()["settings"] == {
         "language": "en",
         "theme": "light",
-        "timeZone": "Asia/Yerevan",
+        "timeZone": "Europe/London",
         "telegramBots": {},
     }
     replaced_with_utc = auth_client.put(

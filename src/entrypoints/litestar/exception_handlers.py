@@ -6,6 +6,7 @@ from verbose_http_exceptions import (
     ForbiddenHTTPException,
     InternalServerErrorHTTPException,
     NotFoundHTTPException,
+    ServiceUnavailableHTTPException,
     UnauthorizedHTTPException,
     status,
 )
@@ -22,6 +23,7 @@ from core.account.exceptions import (
     InvalidManagedAccountRoleError,
     ManagedAccountActionForbiddenError,
     SelfAccountActionForbiddenError,
+    TelegramBotUnavailableError,
 )
 from core.auth.exceptions import ForbiddenError, UnauthorizedError
 from core.exceptions import DomainError, EntryNotFoundError
@@ -36,6 +38,7 @@ DOMAIN_ERROR_MAPPING: dict[type[DomainError], type[BaseVerboseHTTPException]] = 
     InvalidManagedAccountRoleError: BadRequestHTTPException,
     SelfAccountActionForbiddenError: ForbiddenHTTPException,
     ManagedAccountActionForbiddenError: ForbiddenHTTPException,
+    TelegramBotUnavailableError: ServiceUnavailableHTTPException,
 }
 
 

@@ -15,6 +15,7 @@ from core.account.clients import (
     AccountAvatarClient,
     AccountAvatarProcessor,
     RollbackActions,
+    TelegramBotStatusClient,
 )
 from core.account.enums import ManagedAccountActionEnum
 from core.account.exceptions import (
@@ -23,6 +24,7 @@ from core.account.exceptions import (
     AccountUsernameAlreadyExistsError,
     InvalidManagedAccountRoleError,
     ManagedAccountActionForbiddenError,
+    TelegramBotUnavailableError,
 )
 from core.account.schemas import (
     AccountSettings,
@@ -87,6 +89,7 @@ class CurrentAccountUseCase:
     avatar_client: AccountAvatarClient
     avatar_processor: AccountAvatarProcessor
     rollback_actions: RollbackActions
+    telegram_status_client: TelegramBotStatusClient
 
     async def get_account(self, *, username: str) -> CurrentAccount:
         return await self.storage.get_current_account(username=username)
@@ -109,9 +112,14 @@ class CurrentAccountUseCase:
         settings: AccountSettings,
         preserve_existing_time_zone: bool,
     ) -> CurrentAccount:
+        current = await self.storage.get_current_account(username=username)
         if preserve_existing_time_zone:
-            current = await self.storage.get_current_account(username=username)
             settings = replace(settings, time_zone=current.settings.time_zone)
+        if (
+            current.settings.telegram_bots != settings.telegram_bots
+            and not await self.telegram_status_client.is_ready()
+        ):
+            raise TelegramBotUnavailableError
         return await self.storage.update_settings(username=username, settings=settings)
 
     async def replace_avatar(

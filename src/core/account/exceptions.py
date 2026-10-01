@@ -31,3 +31,7 @@ class AccountAvatarNotFoundError(EntryNotFoundError):
 
 class AccountAvatarStorageError(DomainError):
     message = "Avatar storage operation failed"
+
+
+class TelegramBotUnavailableError(DomainError):
+    message = "Telegram bot is unavailable"

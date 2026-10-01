@@ -6,6 +6,7 @@ from httpx import codes
 
 from core import schemas as core_schemas
 from core.account.enums import GenderEnum
+from core.account.exceptions import TelegramBotUnavailableError
 from core.account.schemas import AccountSettings, CurrentAccountUpdateParams
 from core.auth.enums import RoleEnum
 from core.schemas import Secret
@@ -208,3 +209,15 @@ class TestCurrentAccountAPI(ApiTestCase):
             )
             assert response.status_code == codes.BAD_REQUEST
         self.use_case.update_settings.assert_not_called()
+
+    def test_unavailable_bot_returns_sanitized_uncached_503(self) -> None:
+        self.use_case.update_settings.side_effect = TelegramBotUnavailableError
+
+        response = self.api.client.put(
+            "/api/auth/account/me/settings",
+            json={"telegramBots": {"personal-workspace": {"enabled": True}}},
+        )
+
+        assert response.status_code == codes.SERVICE_UNAVAILABLE
+        assert response.json()["message"] == "Telegram bot is unavailable"
+        assert response.headers["cache-control"] == "no-store"

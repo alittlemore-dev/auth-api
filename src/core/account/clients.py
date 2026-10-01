@@ -13,6 +13,12 @@ class AccountAvatarProcessor(ABC):
         raise NotImplementedError
 
 
+class TelegramBotStatusClient(ABC):
+    @abstractmethod
+    async def is_ready(self) -> bool:
+        raise NotImplementedError
+
+
 class AccountAvatarClient(ABC):
     @abstractmethod
     async def upload(self, *, object_name: str, content: bytes) -> None:

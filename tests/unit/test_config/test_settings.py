@@ -15,6 +15,12 @@ def test_available_telegram_requires_service_credential() -> None:
         )
 
 
+def test_telegram_status_url_is_required(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("TELEGRAM_PERSONAL_WORKSPACE_STATUS_URL", raising=False)
+    with pytest.raises(ValidationError):
+        TelegramSettings(_env_file=None, available=False)
+
+
 class TestSettings:
     @pytest.fixture(autouse=True)
     def setup(self, test_settings: Settings) -> Generator[None]:
