@@ -44,6 +44,7 @@ class AuthApiController(Controller):
 
     @post(
         "/verify",
+        security=[{"bearerAuth": []}],
         name="verify-access-token-api-handler",
         description="Verify a bearer access token for a backend service.",
         status_code=status_codes.HTTP_200_OK,

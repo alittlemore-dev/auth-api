@@ -30,6 +30,7 @@ from infra.post_commit_actions import PostCommitActions
 class AccountApiController(Controller):
     path = "/account"
     tags = ["account"]
+    security = [{"bearerAuth": []}]
 
     @get(
         "/me",

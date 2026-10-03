@@ -9,6 +9,7 @@ from litestar.middleware import DefineMiddleware
 from litestar.middleware.logging import LoggingMiddleware, LoggingMiddlewareConfig
 from litestar.openapi import OpenAPIConfig
 from litestar.openapi.plugins import SwaggerRenderPlugin
+from litestar.openapi.spec import Components, SecurityScheme
 from litestar.plugins import PluginProtocol
 from litestar.plugins.pydantic import PydanticPlugin
 from litestar.plugins.structlog import StructlogConfig, StructlogPlugin
@@ -38,6 +39,11 @@ def create_openapi_config() -> OpenAPIConfig:
         title="docs",
         version="0.1.0",
         path="/api/auth/docs",
+        components=Components(
+            security_schemes={
+                "bearerAuth": SecurityScheme(type="http", scheme="bearer", bearer_format="PASETO"),
+            },
+        ),
         render_plugins=[SwaggerRenderPlugin()],
     )
 
