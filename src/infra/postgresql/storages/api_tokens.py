@@ -73,7 +73,7 @@ class ApiTokenDatabaseStorage(ApiTokenStorage):
         )
 
     async def revoke_token(self, *, token_id: str, username: str, now: datetime) -> ApiToken:
-        model = await self.session.scalar(
+        model: ApiTokenModel | None = await self.session.scalar(
             update(ApiTokenModel)
             .where(
                 ApiTokenModel.id == token_id,

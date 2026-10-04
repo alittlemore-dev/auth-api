@@ -2,7 +2,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 from pydantic import ValidationError
-from sqlalchemy.dialects.postgresql import dialect
+from sqlalchemy.dialects.postgresql.psycopg2 import dialect
 from sqlalchemy_dev_utils.types.pydantic import PydanticType
 
 from core.account.enums import TelegramBotId
