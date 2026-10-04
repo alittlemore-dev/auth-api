@@ -29,20 +29,10 @@ class DatabaseProvider(Provider):
         rollback_actions: RollbackActions,
     ) -> AsyncGenerator[AsyncSession, BaseException | None]:
         async with meta.sessionmaker() as session:
+            transaction_state.attach(
+                session=session,
+                post_commit_actions=post_commit_actions,
+                rollback_actions=rollback_actions,
+            )
             request_exception = yield session
-            if request_exception is not None or transaction_state.rollback_required:
-                try:
-                    await session.rollback()
-                finally:
-                    await rollback_actions.run()
-            else:
-                try:
-                    await session.commit()
-                except BaseException:
-                    try:
-                        await session.rollback()
-                    finally:
-                        await rollback_actions.run()
-                    raise
-                else:
-                    await post_commit_actions.run()
+            await transaction_state.finish(request_exception=request_exception)

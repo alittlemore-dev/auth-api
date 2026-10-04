@@ -30,6 +30,7 @@ from core.account.schemas import (
 )
 from core.account.storages import ManagedAccountStorage
 from core.account.use_cases import AccountsUseCase
+from core.api_tokens.storages import ApiTokenStorage
 from core.auth.enums import AuthSessionAuthMethodEnum, AuthSessionDeviceTypeEnum, RoleEnum
 from core.auth.exceptions import UserNotFoundError
 from core.auth.password_hashers import PasswordHasher
@@ -114,7 +115,9 @@ class TestAccountsUseCase(TestCase):
         self.auth_session_storage = Mock(spec=AuthSessionStorage)
         self.hasher = Mock(spec=PasswordHasher)
         self.hasher.hash_password.return_value = "hashed-password"
+        self.api_token_storage = Mock(spec=ApiTokenStorage)
         self.use_case = AccountsUseCase(
+            api_token_storage=self.api_token_storage,
             storage=self.storage,
             hasher=self.hasher,
             auth_session_storage=self.auth_session_storage,
@@ -253,6 +256,22 @@ class TestAccountsUseCase(TestCase):
             username="Admin",
             except_session_id="session-current",
         )
+
+    async def test_pat_revoke_others_revokes_all_browser_sessions_for_self(self) -> None:
+        self.storage.get_managed_account.side_effect = [
+            ManagedAccount(username="Admin", role=RoleEnum.ADMIN, is_active=True),
+            ManagedAccount(username="Admin", role=RoleEnum.ADMIN, is_active=True),
+        ]
+        result = await self.use_case.revoke_other_account_sessions(
+            params=ManagedAccountSessionsRevokeOthersOperationParams(
+                target_username="Admin",
+                current_username="Admin",
+                current_session_id=None,
+            ),
+        )
+        assert result.current_session_revoked is False
+        self.auth_session_storage.revoke_user_sessions.assert_called_once_with(username="Admin")
+        self.auth_session_storage.revoke_user_sessions_except.assert_not_called()
 
     async def test_create_account_rejects_regular_user_role(self) -> None:
         params = ManagedAccountCreateParams(
@@ -532,6 +551,7 @@ class TestAccountsUseCase(TestCase):
         self.storage.update_managed_account_password.return_value = updated_account
 
         account = await self.use_case.update_password(
+            current_datetime=datetime.now(tz=UTC),
             params=ManagedAccountPasswordUpdateOperationParams(
                 target_username="Admin",
                 password_params=params,
@@ -560,6 +580,7 @@ class TestAccountsUseCase(TestCase):
 
         with pytest.raises(ManagedAccountNotFoundError):
             await self.use_case.update_password(
+                current_datetime=datetime.now(tz=UTC),
                 params=ManagedAccountPasswordUpdateOperationParams(
                     target_username="Moderator",
                     password_params=params,
@@ -580,6 +601,7 @@ class TestAccountsUseCase(TestCase):
 
         with pytest.raises(ManagedAccountNotFoundError):
             await self.use_case.update_password(
+                current_datetime=datetime.now(tz=UTC),
                 params=ManagedAccountPasswordUpdateOperationParams(
                     target_username="Moderator",
                     password_params=params,
@@ -597,6 +619,7 @@ class TestAccountsUseCase(TestCase):
 
         with pytest.raises(SelfAccountActionForbiddenError):
             await self.use_case.deactivate_account(
+                current_datetime=datetime.now(tz=UTC),
                 params=ManagedAccountTargetOperationParams(
                     target_username="Admin",
                     current_username="admin",
@@ -613,6 +636,7 @@ class TestAccountsUseCase(TestCase):
 
         with pytest.raises(ManagedAccountActionForbiddenError):
             await self.use_case.deactivate_account(
+                current_datetime=datetime.now(tz=UTC),
                 params=ManagedAccountTargetOperationParams(
                     target_username="OtherAdmin",
                     current_username="Admin",
@@ -634,6 +658,7 @@ class TestAccountsUseCase(TestCase):
         self.storage.deactivate_managed_account.return_value = deactivated_account
 
         account = await self.use_case.deactivate_account(
+            current_datetime=datetime.now(tz=UTC),
             params=ManagedAccountTargetOperationParams(
                 target_username="Moderator",
                 current_username="Admin",

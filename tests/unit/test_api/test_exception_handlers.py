@@ -20,6 +20,7 @@ from core.account.exceptions import (
     SelfAccountActionForbiddenError,
     TelegramBotUnavailableError,
 )
+from core.api_tokens.exceptions import InvalidApiTokenError
 from core.auth.exceptions import ForbiddenError, UnauthorizedError
 from core.exceptions import DomainError, EntryNotFoundError
 from entrypoints.litestar import exception_handlers
@@ -99,6 +100,7 @@ def test_domain_errors_are_registered_with_single_data_driven_handler() -> None:
 def test_domain_error_verbose_exception_mapping() -> None:
     expected_mapping = {
         EntryNotFoundError: NotFoundHTTPException,
+        InvalidApiTokenError: BadRequestHTTPException,
         UnauthorizedError: UnauthorizedHTTPException,
         ForbiddenError: ForbiddenHTTPException,
         AccountUsernameAlreadyExistsError: BadRequestHTTPException,

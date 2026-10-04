@@ -7,6 +7,7 @@ from litestar import Litestar, Router
 from litestar.logging import StructLoggingConfig
 from litestar.middleware import DefineMiddleware
 from litestar.middleware.logging import LoggingMiddleware, LoggingMiddlewareConfig
+from litestar.middleware.rate_limit import RateLimitConfig
 from litestar.openapi import OpenAPIConfig
 from litestar.openapi.plugins import SwaggerRenderPlugin
 from litestar.openapi.spec import Components, SecurityScheme
@@ -18,6 +19,10 @@ from litestar.types import Middleware
 from entrypoints.litestar.api.account.internal.responses import (
     set_account_settings_response_no_store,
 )
+from entrypoints.litestar.api.api_tokens.dependencies import (
+    api_token_rate_limit_identifier,
+    throttle_api_token_password_requests,
+)
 from entrypoints.litestar.api.auth.responses import set_verify_response_no_store
 from entrypoints.litestar.api.routers import api_router
 from entrypoints.litestar.cli.plugins import CLIPlugin
@@ -27,8 +32,10 @@ from entrypoints.litestar.middlewares.logging import (
     LogExceptionMiddleware,
     RequestIdLoggingMiddleware,
 )
+from entrypoints.litestar.middlewares.transactions import DatabaseTransactionMiddleware
 from entrypoints.litestar.openapi_metadata import install_openapi_request_body_metadata
 from infra.config import loggers
+from infra.config.constants import constants
 from infra.config.settings import settings
 
 Lifespan = Sequence[Callable[[Litestar], AbstractAsyncContextManager] | AbstractAsyncContextManager]
@@ -41,7 +48,9 @@ def create_openapi_config() -> OpenAPIConfig:
         path="/api/auth/docs",
         components=Components(
             security_schemes={
-                "bearerAuth": SecurityScheme(type="http", scheme="bearer", bearer_format="PASETO"),
+                "bearerAuth": SecurityScheme(
+                    type="http", scheme="bearer", bearer_format="PASETO or personal API token"
+                ),
             },
         ),
         render_plugins=[SwaggerRenderPlugin()],
@@ -80,6 +89,7 @@ def create_middlewares(container: AsyncContainer) -> list[Middleware]:
     return [
         RequestIdLoggingMiddleware(),
         LogExceptionMiddleware(),
+        DatabaseTransactionMiddleware(),
         DefineMiddleware(
             AuthenticationMiddleware,
             token_header_name=settings.auth.token_header_name,
@@ -90,6 +100,11 @@ def create_middlewares(container: AsyncContainer) -> list[Middleware]:
             exclude_http_methods=None,
             scopes=None,
         ),
+        RateLimitConfig(
+            rate_limit=("minute", constants.auth.api_token_password_requests_per_minute),
+            check_throttle_handler=throttle_api_token_password_requests,
+            identifier_for_request=api_token_rate_limit_identifier,
+        ).middleware,
     ]
 
 

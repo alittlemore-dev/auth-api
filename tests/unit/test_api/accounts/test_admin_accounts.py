@@ -144,6 +144,7 @@ class TestAdminAccountsAPI(ApiTestCase):
         self.asserts.status(response=response, expected_status=codes.OK)
         assert response.json() == {"username": "test", "role": "admin", "isActive": True}
         self.use_case.update_password.assert_called_once_with(
+            current_datetime=datetime(2026, 7, 8, 11, 30, tzinfo=UTC),
             params=ManagedAccountPasswordUpdateOperationParams(
                 target_username="test",
                 password_params=ManagedAccountPasswordUpdateParams(password=Secret("password123")),
@@ -185,6 +186,7 @@ class TestAdminAccountsAPI(ApiTestCase):
             "isActive": False,
         }
         self.use_case.deactivate_account.assert_called_once_with(
+            current_datetime=datetime(2026, 7, 8, 11, 30, tzinfo=UTC),
             params=ManagedAccountTargetOperationParams(
                 target_username="Moderator",
                 current_username="test",

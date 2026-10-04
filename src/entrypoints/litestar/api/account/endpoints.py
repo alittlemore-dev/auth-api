@@ -35,7 +35,12 @@ class AccountApiController(Controller):
     @get(
         "/me",
         name="current-user-account-api-handler",
-        description="Get the authenticated user's private account profile.",
+        description=(
+            "Get the authenticated user's private account profile. Personal API"
+            " token permissions: auth.account.read. Current role and object "
+            "ownership checks also apply."
+        ),
+        opt={"pat_permissions": ("auth.account.read",)},
     )
     async def get_current_account(
         self,
@@ -49,7 +54,12 @@ class AccountApiController(Controller):
     @patch(
         "/me",
         name="update-current-user-account-api-handler",
-        description="Update supplied fields of the authenticated user's private account profile.",
+        description=(
+            "Update supplied fields of the authenticated user's private account"
+            " profile. Personal API token permissions: auth.account.update. "
+            "Current role and object ownership checks also apply."
+        ),
+        opt={"pat_permissions": ("auth.account.update",)},
     )
     async def update_current_account(
         self,
@@ -71,7 +81,11 @@ class AccountApiController(Controller):
         )
         return create_current_account_response(account=account)
 
-    @put("/me/settings", name="replace-current-user-settings-api-handler")
+    @put(
+        "/me/settings",
+        name="replace-current-user-settings-api-handler",
+        opt={"pat_permissions": ("auth.account.update",)},
+    )
     async def replace_settings(
         self,
         request: Request[Principal, Token | None, State],
@@ -102,8 +116,13 @@ class AccountApiController(Controller):
     @put(
         "/me/avatar",
         name="replace-current-user-account-avatar-api-handler",
-        description="Replace the authenticated user's private avatar.",
+        description=(
+            "Replace the authenticated user's private avatar. Personal API "
+            "token permissions: auth.account.update. Current role and object "
+            "ownership checks also apply."
+        ),
         request_max_body_size=constants.account_avatar.max_source_bytes,
+        opt={"pat_permissions": ("auth.account.update",)},
     )
     async def replace_current_account_avatar(
         self,
@@ -135,8 +154,13 @@ class AccountApiController(Controller):
     @delete(
         "/me/avatar",
         name="delete-current-user-account-avatar-api-handler",
-        description="Remove the authenticated user's private avatar.",
+        description=(
+            "Remove the authenticated user's private avatar. Personal API token"
+            " permissions: auth.account.delete. Current role and object "
+            "ownership checks also apply."
+        ),
         status_code=200,
+        opt={"pat_permissions": ("auth.account.delete",)},
     )
     async def delete_current_account_avatar(
         self,
@@ -157,7 +181,12 @@ class AccountApiController(Controller):
     @get(
         "/me/avatar",
         name="get-current-user-account-avatar-api-handler",
-        description="Stream the authenticated user's private avatar.",
+        description=(
+            "Stream the authenticated user's private avatar. Personal API token"
+            " permissions: auth.account.read. Current role and object ownership"
+            " checks also apply."
+        ),
+        opt={"pat_permissions": ("auth.account.read",)},
     )
     async def get_current_account_avatar(
         self,

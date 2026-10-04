@@ -4,6 +4,7 @@ from dishka import Provider
 from dishka.integrations.litestar import LitestarProvider
 
 from infra.ioc.prodivers.account_provider import UserAccountProvider
+from infra.ioc.prodivers.api_tokens_provider import ApiTokensProvider
 from infra.ioc.prodivers.auth_provider import AuthProvider
 from infra.ioc.prodivers.database_provider import DatabaseProvider
 from infra.ioc.prodivers.general_provider import GeneralProvider
@@ -17,5 +18,6 @@ def get_providers() -> Iterable[Provider]:
         LitestarProvider(),
         UserAccountProvider(),
         AuthProvider(),
+        ApiTokensProvider(),
         HealthcheckProvider(),
     )

@@ -167,6 +167,7 @@ class AuthUseCase:
         return AuthVerificationResult(
             user=authentication.user,
             valid_for_seconds=min(token_remaining_seconds, session_remaining_seconds),
+            credential_id=authentication.session.id,
         )
 
     async def refresh_access_token(

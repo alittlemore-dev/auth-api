@@ -17,7 +17,9 @@ from infra.config.constants import constants
 
 
 async def set_verify_response_no_store(message: Message, scope: Scope) -> None:
-    if message["type"] != "http.response.start" or scope.get("path") != "/api/auth/verify":
+    if message["type"] != "http.response.start" or not scope.get("path", "").startswith(
+        "/api/auth/"
+    ):
         return
     MutableScopeHeaders.from_message(message)["Cache-Control"] = (
         constants.auth.no_store_header_value

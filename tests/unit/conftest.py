@@ -15,6 +15,7 @@ from entrypoints.litestar.initializers.main import create_litestar_app
 from infra.config.settings import Settings
 from infra.ioc.prodivers.database_provider import DatabaseProvider
 from tests.unit.mocks.providers.account import MockUserAccountProvider
+from tests.unit.mocks.providers.api_tokens import MockApiTokensProvider
 from tests.unit.mocks.providers.auth import MockAuthProvider
 from tests.unit.mocks.providers.general import MockGeneralProvider
 from tests.unit.mocks.providers.healthcheck import MockHealthcheckProvider
@@ -52,6 +53,7 @@ async def container(
         DatabaseProvider(),
         MockGeneralProvider(uuid_=global_random_uuid),
         MockUserAccountProvider(),
+        MockApiTokensProvider(),
         MockAuthProvider(settings=test_settings, user=jwt_admin, raw_token=raw_token),
         MockHealthcheckProvider(),
     )

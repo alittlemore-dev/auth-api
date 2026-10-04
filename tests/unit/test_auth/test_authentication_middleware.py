@@ -60,7 +60,7 @@ class TestAuthenticationMiddleware(ContainerTestCase):
         self.use_case.authenticate.assert_called_once_with(
             params=AuthAuthenticateParams(
                 token=Token(b"token"),
-                required_role=RoleEnum.MODERATOR,
+                required_role=RoleEnum.USER,
                 current_datetime=test_current_datetime,
             ),
         )

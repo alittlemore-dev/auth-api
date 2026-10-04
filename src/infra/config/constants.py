@@ -64,6 +64,8 @@ class AdminValidationConstants:
 
 
 class AuthConstants:
+    api_token_password_requests_per_minute: int = 10
+    session_verification_cache_seconds: int = 30
     session_cookie_name: Literal["__Secure-msid"] = "__Secure-msid"
     session_cookie_path: Literal["/api/auth"] = "/api/auth"
     csrf_guard_header_name: Literal["X-CSRF-Guard"] = "X-CSRF-Guard"

@@ -45,10 +45,15 @@ class AdminAccountsApiController(Controller):
 
     @get(
         "",
-        description="Get managed owner, admin and moderator accounts.",
+        description=(
+            "Get managed owner, admin and moderator accounts. Personal API "
+            "token permissions: auth.accounts.read. Current role and object "
+            "ownership checks also apply."
+        ),
         name="admin-accounts-list-api-handler",
         status_code=status_codes.HTTP_200_OK,
         dependencies={"filters": Provide(provide_managed_account_filters, sync_to_thread=False)},
+        opt={"pat_permissions": ("auth.accounts.read",)},
     )
     async def list_accounts(
         self,
@@ -60,9 +65,14 @@ class AdminAccountsApiController(Controller):
 
     @post(
         "",
-        description="Create a managed admin or moderator account.",
+        description=(
+            "Create a managed admin or moderator account. Personal API token "
+            "permissions: auth.accounts.create. Current role and object "
+            "ownership checks also apply."
+        ),
         name="admin-accounts-create-api-handler",
         status_code=status_codes.HTTP_201_CREATED,
+        opt={"pat_permissions": ("auth.accounts.create",)},
     )
     async def create_account(
         self,
@@ -94,9 +104,14 @@ class AdminAccountsApiController(Controller):
 
     @get(
         "/{username:str}",
-        description="Get managed account details.",
+        description=(
+            "Get managed account details. Personal API token permissions: "
+            "auth.accounts.read. Current role and object ownership checks also "
+            "apply."
+        ),
         name="admin-accounts-detail-api-handler",
         status_code=status_codes.HTTP_200_OK,
+        opt={"pat_permissions": ("auth.accounts.read",)},
     )
     async def get_account(
         self,
@@ -108,18 +123,23 @@ class AdminAccountsApiController(Controller):
 
     @get(
         "/{username:str}/sessions",
-        description="Get active managed account sessions.",
+        description=(
+            "Get active managed account sessions. Personal API token "
+            "permissions: auth.sessions.read. Current role and object ownership"
+            " checks also apply."
+        ),
         name="admin-accounts-sessions-list-api-handler",
         status_code=status_codes.HTTP_200_OK,
         dependencies={
             "current_session_id": Provide(provide_current_session_id),
         },
+        opt={"pat_permissions": ("auth.sessions.read",)},
     )
     async def list_account_sessions(
         self,
         username: UsernamePath,
         request: Request[Principal, Token | None, State],
-        current_session_id: NamedDependency[str],
+        current_session_id: NamedDependency[str | None],
         current_datetime: FromDishka[datetime],
         use_case: FromDishka[AccountsUseCase],
     ) -> ManagedAccountSessionsResponseSchema:
@@ -135,19 +155,24 @@ class AdminAccountsApiController(Controller):
 
     @post(
         "/{username:str}/sessions/{session_id:str}/revoke",
-        description="Revoke a managed account session.",
+        description=(
+            "Revoke a managed account session. Personal API token permissions: "
+            "auth.sessions.revoke. Current role and object ownership checks "
+            "also apply."
+        ),
         name="admin-accounts-session-revoke-api-handler",
         status_code=status_codes.HTTP_200_OK,
         dependencies={
             "current_session_id": Provide(provide_current_session_id),
         },
+        opt={"pat_permissions": ("auth.sessions.revoke",)},
     )
     async def revoke_account_session(
         self,
         username: UsernamePath,
         session_id: SessionIdPath,
         request: Request[Principal, Token | None, State],
-        current_session_id: NamedDependency[str],
+        current_session_id: NamedDependency[str | None],
         use_case: FromDishka[AccountsUseCase],
     ) -> ManagedAccountSessionRevocationResponseSchema:
         result = await use_case.revoke_account_session(
@@ -162,18 +187,23 @@ class AdminAccountsApiController(Controller):
 
     @post(
         "/{username:str}/sessions/revoke-all",
-        description="Revoke all managed account sessions.",
+        description=(
+            "Revoke all managed account sessions. Personal API token "
+            "permissions: auth.sessions.revoke. Current role and object "
+            "ownership checks also apply."
+        ),
         name="admin-accounts-sessions-revoke-all-api-handler",
         status_code=status_codes.HTTP_200_OK,
         dependencies={
             "current_session_id": Provide(provide_current_session_id),
         },
+        opt={"pat_permissions": ("auth.sessions.revoke",)},
     )
     async def revoke_all_account_sessions(
         self,
         username: UsernamePath,
         request: Request[Principal, Token | None, State],
-        current_session_id: NamedDependency[str],
+        current_session_id: NamedDependency[str | None],
         current_datetime: FromDishka[datetime],
         use_case: FromDishka[AccountsUseCase],
     ) -> ManagedAccountSessionRevocationResponseSchema:
@@ -189,18 +219,23 @@ class AdminAccountsApiController(Controller):
 
     @post(
         "/{username:str}/sessions/revoke-others",
-        description="Revoke other sessions for the current managed account.",
+        description=(
+            "Revoke other sessions for the current managed account. Personal "
+            "API token permissions: auth.sessions.revoke. Current role and "
+            "object ownership checks also apply."
+        ),
         name="admin-accounts-sessions-revoke-others-api-handler",
         status_code=status_codes.HTTP_200_OK,
         dependencies={
             "current_session_id": Provide(provide_current_session_id),
         },
+        opt={"pat_permissions": ("auth.sessions.revoke",)},
     )
     async def revoke_other_account_sessions(
         self,
         username: UsernamePath,
         request: Request[Principal, Token | None, State],
-        current_session_id: NamedDependency[str],
+        current_session_id: NamedDependency[str | None],
         use_case: FromDishka[AccountsUseCase],
     ) -> ManagedAccountSessionRevocationResponseSchema:
         result = await use_case.revoke_other_account_sessions(
@@ -214,9 +249,14 @@ class AdminAccountsApiController(Controller):
 
     @put(
         "/{username:str}/role",
-        description="Update a managed account role.",
+        description=(
+            "Update a managed account role. Personal API token permissions: "
+            "auth.accounts.role. Current role and object ownership checks also "
+            "apply."
+        ),
         name="admin-accounts-role-update-api-handler",
         status_code=status_codes.HTTP_200_OK,
+        opt={"pat_permissions": ("auth.accounts.role",)},
     )
     async def update_role(
         self,
@@ -243,9 +283,14 @@ class AdminAccountsApiController(Controller):
 
     @put(
         "/{username:str}/password",
-        description="Update a managed account password.",
+        description=(
+            "Update a managed account password. Personal API token permissions:"
+            " auth.accounts.password. Current role and object ownership checks "
+            "also apply."
+        ),
         name="admin-accounts-password-update-api-handler",
         status_code=status_codes.HTTP_200_OK,
+        opt={"pat_permissions": ("auth.accounts.password",)},
     )
     async def update_password(
         self,
@@ -260,8 +305,10 @@ class AdminAccountsApiController(Controller):
         ],
         request: Request[Principal, Token | None, State],
         use_case: FromDishka[AccountsUseCase],
+        current_datetime: FromDishka[datetime],
     ) -> ManagedAccountResponseSchema:
         account = await use_case.update_password(
+            current_datetime=current_datetime,
             params=ManagedAccountPasswordUpdateOperationParams(
                 target_username=username,
                 password_params=data.to_domain_schema(),
@@ -272,9 +319,14 @@ class AdminAccountsApiController(Controller):
 
     @post(
         "/{username:str}/activate",
-        description="Activate a managed account.",
+        description=(
+            "Activate a managed account. Personal API token permissions: "
+            "auth.accounts.activate. Current role and object ownership checks "
+            "also apply."
+        ),
         name="admin-accounts-activate-api-handler",
         status_code=status_codes.HTTP_200_OK,
+        opt={"pat_permissions": ("auth.accounts.activate",)},
     )
     async def activate_account(
         self,
@@ -292,17 +344,24 @@ class AdminAccountsApiController(Controller):
 
     @post(
         "/{username:str}/deactivate",
-        description="Deactivate a managed account.",
+        description=(
+            "Deactivate a managed account. Personal API token permissions: "
+            "auth.accounts.deactivate. Current role and object ownership checks"
+            " also apply."
+        ),
         name="admin-accounts-deactivate-api-handler",
         status_code=status_codes.HTTP_200_OK,
+        opt={"pat_permissions": ("auth.accounts.deactivate",)},
     )
     async def deactivate_account(
         self,
         username: UsernamePath,
         request: Request[Principal, Token | None, State],
         use_case: FromDishka[AccountsUseCase],
+        current_datetime: FromDishka[datetime],
     ) -> ManagedAccountResponseSchema:
         account = await use_case.deactivate_account(
+            current_datetime=current_datetime,
             params=ManagedAccountTargetOperationParams(
                 target_username=username,
                 current_username=request.user.username,
@@ -312,9 +371,14 @@ class AdminAccountsApiController(Controller):
 
     @delete(
         "/{username:str}",
-        description="Delete a managed account.",
+        description=(
+            "Delete a managed account. Personal API token permissions: "
+            "auth.accounts.delete. Current role and object ownership checks "
+            "also apply."
+        ),
         name="admin-accounts-delete-api-handler",
         status_code=status_codes.HTTP_204_NO_CONTENT,
+        opt={"pat_permissions": ("auth.accounts.delete",)},
     )
     async def delete_account(
         self,

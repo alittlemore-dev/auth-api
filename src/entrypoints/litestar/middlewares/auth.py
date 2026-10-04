@@ -1,8 +1,10 @@
 from collections.abc import Sequence
 from datetime import datetime
+from typing import Any, cast
 
-from backend_sdk import Principal
+from backend_sdk import CredentialTypeEnum, Principal
 from backend_sdk import RoleEnum as SdkRoleEnum
+from backend_sdk.integrations.litestar import AuthContext, authorize_pat_route
 from dishka import AsyncContainer
 from litestar.connection import ASGIConnection
 from litestar.middleware import (
@@ -11,11 +13,13 @@ from litestar.middleware import (
 )
 from litestar.types import ASGIApp, Method, Scopes
 
+from core.api_tokens.use_cases import ApiTokensUseCase
 from core.auth.enums import RoleEnum
 from core.auth.exceptions import UnauthorizedError
 from core.auth.schemas import AuthAuthenticateParams
 from core.auth.types import Token
 from core.auth.use_cases import AuthUseCase
+from core.schemas import Secret
 
 
 class AuthenticationMiddleware(AbstractAuthenticationMiddleware):
@@ -55,17 +59,50 @@ class AuthenticationMiddleware(AbstractAuthenticationMiddleware):
     async def authenticate_request(self, connection: ASGIConnection) -> AuthenticationResult:
         anon_result = AuthenticationResult(user=Principal.anonymous(), auth=None)
         token: str | None = connection.headers.get(self.token_header_name)
-        if not token or not token.startswith(self.token_prefix):
+        prefix = self.token_prefix + " "
+        if not token or not token.startswith(prefix):
             return anon_result
-        clear_token = Token(token.split(self.token_prefix)[-1].strip().encode())
+        value = token[len(prefix) :]
+        if (
+            not value
+            or value != value.strip()
+            or " " in value
+            or not value.isascii()
+            or not value.isprintable()
+        ):
+            return anon_result
+        clear_token = Token(value.encode())
         async with self.container() as request_container:
             use_case = await request_container.get(AuthUseCase)
             try:
+                now = await request_container.get(datetime)
+                if clear_token.startswith(b"alm_pat_"):
+                    pat_use_case = await request_container.get(ApiTokensUseCase)
+                    verification = await pat_use_case.verify(
+                        secret=Secret(clear_token.decode()),
+                        now=now,
+                    )
+                    context = AuthContext(
+                        valid_for_seconds=verification.valid_for_seconds,
+                        credential_type=CredentialTypeEnum.PAT,
+                        credential_id=verification.credential_id,
+                        permissions=verification.permissions,
+                        cache_ttl_seconds=0,
+                    )
+                    authorize_pat_route(context, connection.route_handler)
+                    cast("dict[str, Any]", connection.scope)["credential_context"] = context
+                    return AuthenticationResult(
+                        user=Principal(
+                            username=verification.user.username,
+                            role=SdkRoleEnum(verification.user.role.value),
+                        ),
+                        auth=clear_token,
+                    )
                 authentication = await use_case.authenticate(
                     params=AuthAuthenticateParams(
                         token=clear_token,
-                        required_role=RoleEnum.MODERATOR,
-                        current_datetime=await request_container.get(datetime),
+                        required_role=RoleEnum.USER,
+                        current_datetime=now,
                     ),
                 )
             except UnauthorizedError:

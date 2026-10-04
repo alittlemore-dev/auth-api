@@ -45,6 +45,7 @@ from core.account.schemas import (
     ManagedAccountTargetOperationParams,
 )
 from core.account.storages import CurrentAccountStorage, ManagedAccountStorage
+from core.api_tokens.storages import ApiTokenStorage
 from core.auth.enums import RoleEnum
 from core.auth.exceptions import UserNotFoundError
 from core.auth.password_hashers import PasswordHasher
@@ -174,6 +175,7 @@ class AccountsUseCase:
     storage: ManagedAccountStorage
     hasher: PasswordHasher
     auth_session_storage: AuthSessionStorage
+    api_token_storage: ApiTokenStorage
 
     async def list_accounts(self, *, filters: ManagedAccountFilters) -> ManagedAccounts:
         accounts, total_count = await self.storage.list_managed_accounts(filters=filters)
@@ -244,7 +246,8 @@ class AccountsUseCase:
         await self.auth_session_storage.revoke_user_sessions(username=params.target_username)
         return ManagedAccountSessionRevocationResult(
             current_session_revoked=(
-                params.target_username.casefold() == params.current_username.casefold()
+                params.current_session_id is not None
+                and params.target_username.casefold() == params.current_username.casefold()
             ),
         )
 
@@ -261,10 +264,13 @@ class AccountsUseCase:
         )
         if params.target_username.casefold() != params.current_username.casefold():
             raise ManagedAccountActionForbiddenError
-        await self.auth_session_storage.revoke_user_sessions_except(
-            username=params.target_username,
-            except_session_id=params.current_session_id,
-        )
+        if params.current_session_id is None:
+            await self.auth_session_storage.revoke_user_sessions(username=params.target_username)
+        else:
+            await self.auth_session_storage.revoke_user_sessions_except(
+                username=params.target_username,
+                except_session_id=params.current_session_id,
+            )
         return ManagedAccountSessionRevocationResult(current_session_revoked=False)
 
     async def create_account(
@@ -307,6 +313,7 @@ class AccountsUseCase:
         self,
         *,
         params: ManagedAccountPasswordUpdateOperationParams,
+        current_datetime: datetime,
     ) -> ManagedAccount:
         password_params = params.password_params
         target_account = await self.storage.get_managed_account(username=params.target_username)
@@ -320,6 +327,10 @@ class AccountsUseCase:
             password_hash=self.hasher.hash_password(password_params.password.get_secret_value()),
         )
         await self.auth_session_storage.revoke_user_sessions(username=params.target_username)
+        await self.api_token_storage.revoke_user_tokens(
+            username=target_account.username,
+            now=current_datetime,
+        )
         return account
 
     async def activate_account(
@@ -339,6 +350,7 @@ class AccountsUseCase:
         self,
         *,
         params: ManagedAccountTargetOperationParams,
+        current_datetime: datetime,
     ) -> ManagedAccount:
         target_account = await self.storage.get_managed_account(username=params.target_username)
         current_account = await self.storage.get_managed_account(username=params.current_username)
@@ -348,6 +360,10 @@ class AccountsUseCase:
         )
         account = await self.storage.deactivate_managed_account(username=params.target_username)
         await self.auth_session_storage.revoke_user_sessions(username=params.target_username)
+        await self.api_token_storage.revoke_user_tokens(
+            username=target_account.username,
+            now=current_datetime,
+        )
         return account
 
     async def delete_account(self, *, params: ManagedAccountTargetOperationParams) -> None:

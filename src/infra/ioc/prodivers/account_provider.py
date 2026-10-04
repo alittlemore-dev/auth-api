@@ -20,6 +20,7 @@ from core.account.use_cases import (
     AvatarOrphanCleanupUseCase,
     CurrentAccountUseCase,
 )
+from core.api_tokens.storages import ApiTokenStorage
 from core.auth.password_hashers import PasswordHasher
 from core.auth.storages import AuthSessionStorage
 from infra.config.constants import constants
@@ -137,9 +138,11 @@ class UserAccountProvider(Provider):
         storage: ManagedAccountStorage,
         hasher: PasswordHasher,
         auth_session_storage: AuthSessionStorage,
+        api_token_storage: ApiTokenStorage,
     ) -> AccountsUseCase:
         return AccountsUseCase(
             storage=storage,
             hasher=hasher,
             auth_session_storage=auth_session_storage,
+            api_token_storage=api_token_storage,
         )

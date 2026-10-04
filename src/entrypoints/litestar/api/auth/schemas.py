@@ -1,4 +1,4 @@
-from typing import Annotated, Self
+from typing import Annotated, Literal, Self
 
 from pydantic import Field
 
@@ -63,3 +63,10 @@ class LoginRequestSchema(CamelCaseSchema):
         str,
         Field(),
     ]
+
+
+class VerifyCredentialResponseSchema(VerifyAccessTokenResponseSchema):
+    credential_type: Literal["session", "pat"]
+    credential_id: Annotated[str, Field(min_length=1)]
+    permissions: list[str]
+    cache_ttl_seconds: Annotated[int, Field(ge=0)]

@@ -206,7 +206,7 @@ class ManagedAccountTargetOperationParams:
 class ManagedAccountSessionsOperationParams:
     target_username: str
     current_username: str
-    current_session_id: str
+    current_session_id: str | None
     current_datetime: datetime
 
 
@@ -215,14 +215,14 @@ class ManagedAccountSessionRevokeOperationParams:
     target_username: str
     current_username: str
     target_session_id: str
-    current_session_id: str
+    current_session_id: str | None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class ManagedAccountSessionsRevokeOthersOperationParams:
     target_username: str
     current_username: str
-    current_session_id: str
+    current_session_id: str | None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -236,7 +236,7 @@ class ManagedAccountSession:
     is_current: bool
 
     @classmethod
-    def from_auth_session(cls, *, session: AuthSession, current_session_id: str) -> Self:
+    def from_auth_session(cls, *, session: AuthSession, current_session_id: str | None) -> Self:
         return cls(
             id=session.id,
             client_metadata=session.client_metadata,

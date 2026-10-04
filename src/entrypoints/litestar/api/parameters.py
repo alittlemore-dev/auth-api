@@ -125,3 +125,14 @@ SessionIdPath: TypeAlias = Annotated[
         examples=("00000000000000000000000000000001",),
     ),
 ]
+
+
+ApiTokenIdPath: TypeAlias = Annotated[
+    str,
+    api_path_parameter(
+        name="token_id",
+        title="API token identifier",
+        description="Hex identifier of a personal API token owned by the current account.",
+        examples=("00000000000000000000000000000001",),
+    ),
+]

@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ua_parser import parse
 
 from core.account.storages import UserAccountStorage
+from core.auth.exceptions import UnauthorizedError
 from core.auth.generators import AuthSessionSecretGenerator
 from core.auth.password_hashers import PasswordHasher
 from core.auth.schemas import (
@@ -35,7 +36,19 @@ class AuthProvider(Provider):
 
     @provide(scope=Scope.REQUEST)
     async def token(self, raw_token: RawToken) -> Token:
-        return Token(raw_token.split(settings.auth.token_prefix)[-1].strip().encode())
+        prefix = settings.auth.token_prefix + " "
+        if not raw_token.startswith(prefix):
+            raise UnauthorizedError
+        token = raw_token[len(prefix) :]
+        if (
+            not token
+            or token != token.strip()
+            or " " in token
+            or not token.isascii()
+            or not token.isprintable()
+        ):
+            raise UnauthorizedError
+        return Token(token.encode())
 
     @provide(scope=Scope.APP)
     async def provide_hasher(self) -> PasswordHasher:

@@ -25,12 +25,14 @@ from core.account.exceptions import (
     SelfAccountActionForbiddenError,
     TelegramBotUnavailableError,
 )
+from core.api_tokens.exceptions import InvalidApiTokenError
 from core.auth.exceptions import ForbiddenError, UnauthorizedError
 from core.exceptions import DomainError, EntryNotFoundError
 from infra.healthcheck import ReadinessCheckError
 
 DOMAIN_ERROR_MAPPING: dict[type[DomainError], type[BaseVerboseHTTPException]] = {
     EntryNotFoundError: NotFoundHTTPException,
+    InvalidApiTokenError: BadRequestHTTPException,
     UnauthorizedError: UnauthorizedHTTPException,
     ForbiddenError: ForbiddenHTTPException,
     AccountUsernameAlreadyExistsError: BadRequestHTTPException,

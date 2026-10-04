@@ -21,10 +21,15 @@ class AdminToolsApiController(Controller):
 
     @get(
         "/auth-sessions",
-        description="Get expired and soon-expiring auth session counts.",
+        description=(
+            "Get expired and soon-expiring auth session counts. Personal API "
+            "token permissions: auth.tools.read. Current role and object "
+            "ownership checks also apply."
+        ),
         name="admin-tools-auth-sessions-status-api-handler",
         status_code=status_codes.HTTP_200_OK,
         cache=False,
+        opt={"pat_permissions": ("auth.tools.read",)},
     )
     async def get_auth_sessions_status(
         self,
@@ -40,10 +45,15 @@ class AdminToolsApiController(Controller):
 
     @post(
         "/auth-sessions/prune",
-        description="Delete expired auth sessions and return refreshed counts.",
+        description=(
+            "Delete expired auth sessions and return refreshed counts. Personal"
+            " API token permissions: auth.tools.manage. Current role and object"
+            " ownership checks also apply."
+        ),
         name="admin-tools-auth-sessions-prune-api-handler",
         status_code=status_codes.HTTP_200_OK,
         cache=False,
+        opt={"pat_permissions": ("auth.tools.manage",)},
     )
     async def prune_auth_sessions(
         self,

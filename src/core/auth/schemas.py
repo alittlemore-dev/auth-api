@@ -68,6 +68,7 @@ class User(BaseUser):
 class AuthVerificationResult:
     user: User
     valid_for_seconds: int
+    credential_id: str = ""
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
