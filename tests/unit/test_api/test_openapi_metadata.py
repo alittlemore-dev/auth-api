@@ -2,6 +2,21 @@ from collections.abc import Iterable, Mapping
 from typing import Any
 
 from litestar import Litestar
+from litestar.testing import TestClient
+from pydantic import BaseModel, TypeAdapter
+from verbose_http_exceptions.exc.base import VerboseHTTPExceptionDict
+
+from entrypoints.litestar.api.account.schemas import (
+    AccountSettingsSchema,
+    CurrentAccountUpdateRequestSchema,
+)
+from entrypoints.litestar.api.accounts.schemas import (
+    ManagedAccountCreateRequestSchema,
+    ManagedAccountPasswordUpdateRequestSchema,
+    ManagedAccountRoleUpdateRequestSchema,
+)
+from entrypoints.litestar.api.api_tokens.schemas import ApiTokenCreateSchema, ApiTokenPasswordSchema
+from entrypoints.litestar.api.auth.schemas import LoginRequestSchema
 
 
 class TestOpenApiMetadata:
@@ -72,6 +87,66 @@ class TestOpenApiMetadata:
         ]
 
         assert missing_metadata == []
+
+    def test_avatar_download_documents_webp_binary(self, app: Litestar) -> None:
+        schema = app.openapi_schema.to_schema()
+        response = schema["paths"]["/api/auth/account/me/avatar"]["get"]["responses"]["200"]
+        assert set(response["content"]) == {"image/webp"}
+        assert response["content"]["image/webp"]["schema"]["type"] == "string"
+        assert response["content"]["image/webp"]["schema"]["format"] == "binary"
+
+    def test_pagination_is_required_and_bounded(self, app: Litestar, client: TestClient) -> None:
+        schema = app.openapi_schema.to_schema()
+        operation = schema["paths"]["/api/auth/admin/accounts"]["get"]
+        parameters = {parameter["name"]: parameter for parameter in operation["parameters"]}
+        for name in ("page", "pageSize"):
+            assert parameters[name]["required"] is True
+            assert "default" not in parameters[name]["schema"]
+            assert parameters[name]["schema"]["minimum"] == 1
+        assert parameters["pageSize"]["schema"]["maximum"] == 100
+        response = client.get("/api/auth/admin/accounts")
+        assert response.status_code == 400
+        TypeAdapter(VerboseHTTPExceptionDict).validate_python(response.json())
+
+    def test_documented_errors_match_runtime_envelope(self, app: Litestar) -> None:
+        schema = app.openapi_schema.to_schema()
+        error_schema = schema["components"]["schemas"]["VerboseHTTPExceptionDict"]
+        assert set(error_schema["required"]) == {"code", "type", "message", "location", "attr"}
+        assert "nested_errors" in error_schema["properties"]
+        assert "nestedErrors" not in error_schema["properties"]
+        for _, _, operation in self._iter_operations(schema=schema):
+            for code, response in operation["responses"].items():
+                if int(code) < 400:
+                    continue
+                content = response["content"]["application/json"]
+                assert content["schema"] == {
+                    "$ref": "#/components/schemas/VerboseHTTPExceptionDict"
+                }
+                for example in content["examples"].values():
+                    TypeAdapter(VerboseHTTPExceptionDict).validate_python(example["value"])
+
+    def test_json_body_examples_validate_against_request_models(self, app: Litestar) -> None:
+        schema = app.openapi_schema.to_schema()
+        models: dict[tuple[str, str], type[BaseModel]] = {
+            ("/api/auth/login", "post"): LoginRequestSchema,
+            ("/api/auth/account/me", "patch"): CurrentAccountUpdateRequestSchema,
+            ("/api/auth/account/me/settings", "put"): AccountSettingsSchema,
+            ("/api/auth/account/me/api-tokens", "post"): ApiTokenCreateSchema,
+            ("/api/auth/account/me/api-tokens/{token_id}/reveal", "post"): ApiTokenPasswordSchema,
+            ("/api/auth/admin/accounts", "post"): ManagedAccountCreateRequestSchema,
+            (
+                "/api/auth/admin/accounts/{username}/password",
+                "put",
+            ): ManagedAccountPasswordUpdateRequestSchema,
+            (
+                "/api/auth/admin/accounts/{username}/role",
+                "put",
+            ): ManagedAccountRoleUpdateRequestSchema,
+        }
+        for (path, method), model in models.items():
+            content = schema["paths"][path][method]["requestBody"]["content"]["application/json"]
+            for example in content["examples"].values():
+                model.model_validate(example["value"])
 
     @staticmethod
     def _iter_operations(

@@ -12,6 +12,7 @@ from entrypoints.litestar.api.admin_tools.schemas import (
     AuthSessionsPruneResponseSchema,
     AuthSessionsStatusResponseSchema,
 )
+from entrypoints.litestar.api.openapi import error_responses
 
 
 class AdminToolsApiController(Controller):
@@ -21,6 +22,15 @@ class AdminToolsApiController(Controller):
 
     @get(
         "/auth-sessions",
+        responses=error_responses(
+            **{
+                "401": "Missing or invalid bearer credential.",
+                "403": (
+                    "Administrator role or required personal API token permission is "
+                    "missing; protected-account restrictions also apply."
+                ),
+            }
+        ),
         description=(
             "Get expired and soon-expiring auth session counts. Personal API "
             "token permissions: auth.tools.read. Current role and object "
@@ -45,6 +55,15 @@ class AdminToolsApiController(Controller):
 
     @post(
         "/auth-sessions/prune",
+        responses=error_responses(
+            **{
+                "401": "Missing or invalid bearer credential.",
+                "403": (
+                    "Administrator role or required personal API token permission is "
+                    "missing; protected-account restrictions also apply."
+                ),
+            }
+        ),
         description=(
             "Delete expired auth sessions and return refreshed counts. Personal"
             " API token permissions: auth.tools.manage. Current role and object"

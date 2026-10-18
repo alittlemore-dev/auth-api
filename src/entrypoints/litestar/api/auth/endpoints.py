@@ -37,7 +37,7 @@ from entrypoints.litestar.api.auth.schemas import (
     VerifyAccessTokenResponseSchema,
     VerifyCredentialResponseSchema,
 )
-from entrypoints.litestar.api.openapi import OPENAPI_PASSWORD_EXAMPLE
+from entrypoints.litestar.api.openapi import OPENAPI_PASSWORD_EXAMPLE, error_responses
 from entrypoints.litestar.api.parameters import api_json_body
 from infra.config.constants import constants
 
@@ -48,6 +48,16 @@ class AuthApiController(Controller):
 
     @post(
         "/verify",
+        responses=error_responses(
+            **{
+                "401": (
+                    "Missing, expired, revoked or invalid session access token; personal "
+                    "API tokens are rejected."
+                ),
+                "403": "Account role cannot use this operation.",
+                "503": "Token verification dependencies are unavailable.",
+            }
+        ),
         security=[{"bearerAuth": []}],
         name="verify-access-token-api-handler",
         description="Verify a browser session access token; personal API tokens are rejected.",
@@ -77,6 +87,13 @@ class AuthApiController(Controller):
 
     @post(
         "/verify/v2",
+        responses=error_responses(
+            **{
+                "401": "Missing, expired, revoked or invalid credential.",
+                "403": "Account is inactive or the credential is forbidden.",
+                "503": "Token verification dependencies are unavailable.",
+            }
+        ),
         status_code=200,
         security=[{"bearerAuth": []}],
         description=(
@@ -133,6 +150,13 @@ class AuthApiController(Controller):
 
     @post(
         "/login",
+        responses=error_responses(
+            **{
+                "400": "Malformed or missing login fields.",
+                "401": "Unknown username, incorrect password or inactive account.",
+                "403": "Account role cannot log in; moderator, admin or owner is required.",
+            }
+        ),
         name="login-api-handler",
         description=(
             "Log in to the system. Creates a server-side session cookie and returns a "
@@ -169,8 +193,20 @@ class AuthApiController(Controller):
 
     @post(
         "/refresh",
+        responses=error_responses(
+            **{
+                "401": "Missing, expired or revoked session cookie, or inactive account.",
+                "403": ("Missing X-CSRF-Guard: 1, cross-site request or disallowed role."),
+            }
+        ),
         name="refresh-api-handler",
-        description="Refresh the short-lived access token from the server-side session cookie.",
+        security=[{"sessionCookie": [], "csrfGuard": []}],
+        description=(
+            "Refresh the short-lived access token using the __Secure-msid browser session cookie "
+            "and X-CSRF-Guard: 1. Sec-Fetch-Site: cross-site is rejected. Extends session expiry "
+            "within its absolute lifetime, renews the Secure/HttpOnly/SameSite=Lax cookie, "
+            "and returns a new access token."
+        ),
         status_code=status_codes.HTTP_200_OK,
         dependencies={
             "session_secret": Provide(provide_refresh_session_secret, sync_to_thread=False),
@@ -195,8 +231,19 @@ class AuthApiController(Controller):
 
     @post(
         "/logout",
+        responses=error_responses(
+            **{
+                "401": "Missing or invalid bearer credential.",
+                "403": "Missing X-CSRF-Guard: 1 or cross-site request.",
+            }
+        ),
         name="logout-api-handler",
-        description="Log out of the system. Revokes the current session and PASETO access token.",
+        security=[{"bearerAuth": [], "csrfGuard": []}],
+        description=(
+            "Log out using Authorization and X-CSRF-Guard: 1. Sec-Fetch-Site: cross-site is "
+            "rejected. Revokes the access token and the optional __Secure-msid session cookie, "
+            "then clears the cookie. Returns an empty response body."
+        ),
         status_code=status_codes.HTTP_200_OK,
         dependencies={
             "session_secret": Provide(provide_logout_session_secret, sync_to_thread=False),

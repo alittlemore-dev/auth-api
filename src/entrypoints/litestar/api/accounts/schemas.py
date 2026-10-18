@@ -19,7 +19,14 @@ from entrypoints.litestar.api.validation import AccountPasswordString, AccountUs
 
 
 class ManagedAccountRoleMixin(CamelCaseSchema):
-    role: Annotated[RoleEnum, Field(title="Managed account role")]
+    role: Annotated[
+        RoleEnum,
+        Field(
+            title="Managed account role",
+            description="Only admin and moderator can be assigned.",
+            examples=["moderator"],
+        ),
+    ]
 
     @field_validator("role")
     @classmethod
@@ -31,9 +38,23 @@ class ManagedAccountRoleMixin(CamelCaseSchema):
 
 
 class ManagedAccountCreateRequestSchema(ManagedAccountRoleMixin):
-    username: Annotated[AccountUsernameString, Field(title="Username")]
-    password: Annotated[AccountPasswordString, Field(title="Password")]
-    is_active: Annotated[bool, Field(title="Active")]
+    username: Annotated[
+        AccountUsernameString,
+        Field(title="Username", description="Unique account login name.", examples=["moderator"]),
+    ]
+    password: Annotated[
+        AccountPasswordString,
+        Field(
+            title="Password",
+            json_schema_extra={"format": "password"},
+            description="Account password. Example is fictitious.",
+            examples=["Example-Password-42!"],
+        ),
+    ]
+    is_active: Annotated[
+        bool,
+        Field(title="Active", description="Whether the account can authenticate.", examples=[True]),
+    ]
 
     def to_domain_schema(self) -> ManagedAccountCreateParams:
         return ManagedAccountCreateParams(
@@ -50,16 +71,33 @@ class ManagedAccountRoleUpdateRequestSchema(ManagedAccountRoleMixin):
 
 
 class ManagedAccountPasswordUpdateRequestSchema(CamelCaseSchema):
-    password: Annotated[AccountPasswordString, Field(title="Password")]
+    password: Annotated[
+        AccountPasswordString,
+        Field(
+            title="Password",
+            json_schema_extra={"format": "password"},
+            description="Account password. Example is fictitious.",
+            examples=["Example-Password-42!"],
+        ),
+    ]
 
     def to_domain_schema(self) -> ManagedAccountPasswordUpdateParams:
         return ManagedAccountPasswordUpdateParams(password=Secret(self.password))
 
 
 class ManagedAccountResponseSchema(CamelCaseSchema):
-    username: Annotated[str, Field(title="Username")]
-    role: Annotated[RoleEnum, Field(title="Role")]
-    is_active: Annotated[bool, Field(title="Active")]
+    username: Annotated[
+        str,
+        Field(title="Username", description="Unique account login name.", examples=["moderator"]),
+    ]
+    role: Annotated[
+        RoleEnum,
+        Field(title="Role", description="Current authorization role.", examples=["moderator"]),
+    ]
+    is_active: Annotated[
+        bool,
+        Field(title="Active", description="Whether the account can authenticate.", examples=[True]),
+    ]
 
     @classmethod
     def from_domain_schema(cls, *, schema: ManagedAccount) -> ManagedAccountResponseSchema:
@@ -71,9 +109,29 @@ class ManagedAccountResponseSchema(CamelCaseSchema):
 
 
 class ManagedAccountsResponseSchema(CamelCaseSchema):
-    total_count: Annotated[int, Field(title="Total count")]
-    total_pages: Annotated[int, Field(title="Total pages")]
-    accounts: Annotated[list[ManagedAccountResponseSchema], Field(title="Accounts")]
+    total_count: Annotated[
+        int,
+        Field(
+            title="Total count",
+            description="Total managed accounts matching this list.",
+            examples=[37],
+        ),
+    ]
+    total_pages: Annotated[
+        int,
+        Field(
+            title="Total pages",
+            description="Number of pages for the requested pageSize; zero for an empty list.",
+            examples=[2],
+        ),
+    ]
+    accounts: Annotated[
+        list[ManagedAccountResponseSchema],
+        Field(
+            title="Accounts",
+            description="Accounts on the requested page; empty if the page is beyond the end.",
+        ),
+    ]
 
     @classmethod
     def from_domain_schema(cls, *, schema: ManagedAccounts) -> ManagedAccountsResponseSchema:
@@ -88,16 +146,83 @@ class ManagedAccountsResponseSchema(CamelCaseSchema):
 
 
 class ManagedAccountSessionResponseSchema(CamelCaseSchema):
-    id: Annotated[str, Field(title="Session ID")]
-    user_agent_display: Annotated[str, Field(title="User-agent display")]
-    user_agent_browser: Annotated[str, Field(title="User-agent browser")]
-    user_agent_os: Annotated[str, Field(title="User-agent OS")]
-    user_agent_device: Annotated[str, Field(title="User-agent device")]
-    auth_method: Annotated[str, Field(title="Authentication method")]
-    created_at: Annotated[str, Field(title="Created at")]
-    last_used_at: Annotated[str, Field(title="Last used at")]
-    expires_at: Annotated[str, Field(title="Expires at")]
-    is_current: Annotated[bool, Field(title="Current session")]
+    id: Annotated[
+        str,
+        Field(
+            title="Session ID",
+            description="Opaque server-side session identifier.",
+            examples=["724f9aa3b9844c8c867ed4e31c820db2"],
+        ),
+    ]
+    user_agent_display: Annotated[
+        str,
+        Field(
+            title="User-agent display",
+            description="Readable browser and operating system summary.",
+            examples=["Firefox 143 on Linux"],
+        ),
+    ]
+    user_agent_browser: Annotated[
+        str,
+        Field(
+            title="User-agent browser",
+            description="Parsed browser name/version.",
+            examples=["Firefox 143"],
+        ),
+    ]
+    user_agent_os: Annotated[
+        str,
+        Field(title="User-agent OS", description="Parsed operating system.", examples=["Linux"]),
+    ]
+    user_agent_device: Annotated[
+        str,
+        Field(
+            title="User-agent device", description="Parsed device category.", examples=["desktop"]
+        ),
+    ]
+    auth_method: Annotated[
+        str,
+        Field(
+            title="Authentication method",
+            description="Method that created the session.",
+            examples=["password"],
+        ),
+    ]
+    created_at: Annotated[
+        str,
+        Field(
+            title="Created at",
+            description="Session creation time as an ISO 8601 UTC timestamp.",
+            examples=["2026-10-18T12:00:00+00:00"],
+        ),
+    ]
+    last_used_at: Annotated[
+        str,
+        Field(
+            title="Last used at",
+            description="Last successful session activity as an ISO 8601 UTC timestamp.",
+            examples=["2026-10-18T13:15:00+00:00"],
+        ),
+    ]
+    expires_at: Annotated[
+        str,
+        Field(
+            title="Expires at",
+            description="Session expiry as an ISO 8601 UTC timestamp.",
+            examples=["2026-11-17T12:00:00+00:00"],
+        ),
+    ]
+    is_current: Annotated[
+        bool,
+        Field(
+            title="Current session",
+            description=(
+                "Whether the session is the browser session used for this request; false "
+                "for a PAT request."
+            ),
+            examples=[True],
+        ),
+    ]
 
     @classmethod
     def from_domain_schema(
@@ -120,7 +245,10 @@ class ManagedAccountSessionResponseSchema(CamelCaseSchema):
 
 
 class ManagedAccountSessionsResponseSchema(CamelCaseSchema):
-    sessions: Annotated[list[ManagedAccountSessionResponseSchema], Field(title="Sessions")]
+    sessions: Annotated[
+        list[ManagedAccountSessionResponseSchema],
+        Field(title="Sessions", description="Active sessions of the managed account."),
+    ]
 
     @classmethod
     def from_domain_schema(
@@ -137,7 +265,14 @@ class ManagedAccountSessionsResponseSchema(CamelCaseSchema):
 
 
 class ManagedAccountSessionRevocationResponseSchema(CamelCaseSchema):
-    current_session_revoked: Annotated[bool, Field(title="Current session revoked")]
+    current_session_revoked: Annotated[
+        bool,
+        Field(
+            title="Current session revoked",
+            description="Whether this action revoked the browser session making the request.",
+            examples=[False],
+        ),
+    ]
 
     @classmethod
     def from_domain_schema(

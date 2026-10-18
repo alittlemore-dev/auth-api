@@ -43,11 +43,37 @@ Lifespan = Sequence[Callable[[Litestar], AbstractAsyncContextManager] | Abstract
 
 def create_openapi_config() -> OpenAPIConfig:
     return OpenAPIConfig(
-        title="docs",
-        version="0.1.0",
+        title="Authentication and accounts API",
+        version="1.0.0",
+        description=(
+            "Authentication, private account preferences, personal API tokens and administrator "
+            "account/session management. JSON request/response fields use camelCase. Error bodies "
+            "use code, type, message, location and attr; multiple validation failures additionally "
+            "contain recursive nested_errors (snake_case). "
+            "Invalid inputs return HTTP 400, not 422. "
+            "Protected operations accept Authorization: Bearer <credential>; individual operations "
+            "document whether a browser session or personal API token is accepted. Auth/account "
+            "responses are private and must not be cached. Paginated account lists require both "
+            "page and pageSize."
+        ),
         path="/api/auth/docs",
         components=Components(
             security_schemes={
+                "sessionCookie": SecurityScheme(
+                    type="apiKey",
+                    security_scheme_in="cookie",
+                    name=constants.auth.session_cookie_name,
+                    description=(
+                        "Secure, HttpOnly, SameSite=Lax browser session cookie set by "
+                        "login/refresh."
+                    ),
+                ),
+                "csrfGuard": SecurityScheme(
+                    type="apiKey",
+                    security_scheme_in="header",
+                    name=constants.auth.csrf_guard_header_name,
+                    description="Send the literal value 1. Sec-Fetch-Site: cross-site is rejected.",
+                ),
                 "bearerAuth": SecurityScheme(
                     type="http", scheme="bearer", bearer_format="PASETO or personal API token"
                 ),

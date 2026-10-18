@@ -24,7 +24,7 @@ from entrypoints.litestar.api.api_tokens.schemas import (
     ApiTokenPasswordSchema,
     ApiTokenSecretSchema,
 )
-from entrypoints.litestar.api.openapi import OPENAPI_PASSWORD_EXAMPLE
+from entrypoints.litestar.api.openapi import OPENAPI_PASSWORD_EXAMPLE, error_responses
 from entrypoints.litestar.api.parameters import ApiTokenIdPath, api_json_body
 
 
@@ -39,6 +39,12 @@ class ApiTokensController(Controller):
 
     @get(
         "/permissions",
+        responses=error_responses(
+            **{
+                "401": "Missing or invalid browser session.",
+                "403": "Personal API tokens cannot manage API tokens.",
+            }
+        ),
         description=(
             "List permissions available to the current role. Browser session only; personal API "
             "tokens cannot manage API tokens. Response is no-store."
@@ -63,6 +69,12 @@ class ApiTokensController(Controller):
 
     @get(
         "",
+        responses=error_responses(
+            **{
+                "401": "Missing or invalid browser session.",
+                "403": "Personal API tokens cannot manage API tokens.",
+            }
+        ),
         description=(
             "List owned token metadata without secrets. Browser session only; personal API "
             "tokens cannot manage API tokens. Response is no-store."
@@ -83,6 +95,16 @@ class ApiTokensController(Controller):
 
     @post(
         "",
+        responses=error_responses(
+            **{
+                "400": "Invalid body, token name, permissions or expiration.",
+                "401": "Missing or invalid browser session.",
+                "403": "Password confirmation failed or caller used a personal API token.",
+                "429": (
+                    "Too many password-confirmed token requests; retry after the rate-limit window."
+                ),
+            }
+        ),
         status_code=201,
         description=(
             "Create a personal API token after current-password confirmation. Permissions and "
@@ -103,7 +125,7 @@ class ApiTokensController(Controller):
                         "name": "CLI",
                         "password": OPENAPI_PASSWORD_EXAMPLE,
                         "permissions": ["workspace.resumes.read"],
-                        "expiresAt": "2026-10-05T00:00:00Z",
+                        "expiresAt": "2027-01-18T12:00:00Z",
                     },
                 ),
             ),
@@ -124,6 +146,20 @@ class ApiTokensController(Controller):
 
     @post(
         "/{token_id:str}/reveal",
+        responses=error_responses(
+            **{
+                "400": "Invalid password confirmation body.",
+                "401": "Missing or invalid browser session.",
+                "403": (
+                    "Password confirmation failed, token is expired/revoked or caller "
+                    "used a personal API token."
+                ),
+                "404": "Owned API token was not found.",
+                "429": (
+                    "Too many password-confirmed token requests; retry after the rate-limit window."
+                ),
+            }
+        ),
         status_code=200,
         description=(
             "Reveal the same active secret after current-password confirmation for each request. "
@@ -156,6 +192,13 @@ class ApiTokensController(Controller):
 
     @post(
         "/{token_id:str}/revoke",
+        responses=error_responses(
+            **{
+                "401": "Missing or invalid browser session.",
+                "403": "Personal API tokens cannot manage API tokens.",
+                "404": "Owned API token was not found.",
+            }
+        ),
         status_code=200,
         description=(
             "Permanently revoke an owned token; repeated revocation is idempotent. Browser session "

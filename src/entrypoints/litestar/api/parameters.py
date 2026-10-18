@@ -6,9 +6,11 @@ from litestar.enums import RequestEncodingType
 from litestar.openapi.spec import Example
 from litestar.params import BodyKwarg, PathParameter, QueryParameter
 
+from entrypoints.litestar.api.openapi import JSONExample
+
 
 def build_examples(*values: object) -> list[Example]:
-    return [Example(value=value) for value in values]
+    return [JSONExample(value=value) for value in values]
 
 
 def api_query_parameter(  # noqa: PLR0913
@@ -86,7 +88,7 @@ PageQuery: TypeAlias = Annotated[
     api_query_parameter(
         name="page",
         title="Page",
-        description="One-based page number.",
+        description="Required one-based page number; no default is applied. Send with pageSize.",
         examples=(1,),
         ge=1,
         le=None,
@@ -99,7 +101,9 @@ PageSizeQuery: TypeAlias = Annotated[
     api_query_parameter(
         name="pageSize",
         title="Page size",
-        description="Number of items to return per page.",
+        description=(
+            "Required number of items per page (1-100); no default is applied. Send with page."
+        ),
         examples=(20,),
         ge=1,
         le=100,

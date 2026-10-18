@@ -25,7 +25,16 @@ AccountTimeZone = Annotated[ZoneInfo, BeforeValidator(validate_time_zone_identif
 class AccountAvatarUploadRequestSchema(CamelCaseSchema):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    file: Annotated[UploadFile, Field(title="Avatar image")]
+    file: Annotated[
+        UploadFile,
+        Field(
+            title="Avatar image",
+            description=(
+                "Binary JPEG, PNG or WebP image; stored and served as WebP. Multipart "
+                "body limit: 5 MiB."
+            ),
+        ),
+    ]
 
     async def to_domain_schema(self) -> AccountAvatarUpload:
         content = await self.file.read(constants.account_avatar.max_source_bytes + 1)
@@ -38,10 +47,35 @@ class AccountAvatarUploadRequestSchema(CamelCaseSchema):
 
 
 class CurrentAccountUpdateRequestSchema(CamelCaseSchema):
-    first_name: Annotated[str | None, Field(max_length=100)] = None
-    last_name: Annotated[str | None, Field(max_length=100)] = None
-    middle_name: Annotated[str | None, Field(max_length=100)] = None
-    gender: GenderEnum | None = None
+    first_name: Annotated[
+        str | None,
+        Field(
+            max_length=100,
+            description="Given name. Omit to preserve; null or blank clears it.",
+            examples=["Dmitriy"],
+        ),
+    ] = None
+    last_name: Annotated[
+        str | None,
+        Field(
+            max_length=100,
+            description="Family name. Omit to preserve; null or blank clears it.",
+            examples=["Lunev"],
+        ),
+    ] = None
+    middle_name: Annotated[
+        str | None,
+        Field(
+            max_length=100,
+            description="Middle name. Omit to preserve; null or blank clears it.",
+            examples=["Alexandrovich"],
+        ),
+    ] = None
+    gender: GenderEnum | None = Field(
+        default=None,
+        description="Profile gender. Omit to preserve; null clears it.",
+        examples=["male"],
+    )
 
     @field_validator("first_name", "last_name", "middle_name", mode="before")
     @classmethod
@@ -70,15 +104,29 @@ class CurrentAccountUpdateRequestSchema(CamelCaseSchema):
 
 
 class TelegramBotSettingsSchema(CamelCaseSchema):
-    enabled: bool = False
-    notify: bool = False
+    enabled: bool = Field(
+        default=False,
+        description="Whether this bot integration is enabled for the account.",
+        examples=[True],
+    )
+    notify: bool = Field(
+        default=False,
+        description="Whether notifications through this bot are enabled.",
+        examples=[True],
+    )
 
 
 class AccountSettingsSchema(CamelCaseSchema):
     model_config = ConfigDict(validate_default=True)
 
-    language: AccountLanguageEnum = AccountLanguageEnum.EN
-    theme: AccountThemeEnum = AccountThemeEnum.LIGHT
+    language: AccountLanguageEnum = Field(
+        default=AccountLanguageEnum.EN, description="Preferred interface language.", examples=["en"]
+    )
+    theme: AccountThemeEnum = Field(
+        default=AccountThemeEnum.LIGHT,
+        description="Preferred interface color theme.",
+        examples=["dark"],
+    )
     time_zone: AccountTimeZone = Field(
         default_factory=lambda: constants.account_time_zone.default,
         description="IANA time zone identifier used for the account calendar and reminders.",
@@ -89,7 +137,13 @@ class AccountSettingsSchema(CamelCaseSchema):
             "maxLength": constants.account_time_zone.max_iana_time_zone_length,
         },
     )
-    telegram_bots: dict[TelegramBotId, TelegramBotSettingsSchema] = Field(default_factory=dict)
+    telegram_bots: dict[TelegramBotId, TelegramBotSettingsSchema] = Field(
+        default_factory=dict,
+        description=(
+            "Preferences keyed by supported bot identifier. Omitted bots use disabled defaults."
+        ),
+        examples=[{"personal-workspace": {"enabled": True, "notify": True}}],
+    )
 
     def to_domain_schema(self) -> AccountSettings:
         return AccountSettings(
@@ -116,14 +170,23 @@ class AccountSettingsSchema(CamelCaseSchema):
 
 
 class CurrentAccountResponseSchema(CamelCaseSchema):
-    username: str
-    role: RoleEnum
-    first_name: str | None
-    last_name: str | None
-    middle_name: str | None
-    gender: GenderEnum | None
-    settings: AccountSettingsSchema
-    has_avatar: bool
+    username: str = Field(description="Unique account login name.", examples=["dmitriy.lunev"])
+    role: RoleEnum = Field(
+        description="Current account authorization role.", examples=["moderator"]
+    )
+    first_name: str | None = Field(description="Given name; null when unset.", examples=["Dmitriy"])
+    last_name: str | None = Field(description="Family name; null when unset.", examples=["Lunev"])
+    middle_name: str | None = Field(
+        description="Middle name; null when unset.", examples=["Alexandrovich"]
+    )
+    gender: GenderEnum | None = Field(
+        description="Profile gender; null when unset.", examples=["male"]
+    )
+    settings: AccountSettingsSchema = Field(description="Complete current account preferences.")
+    has_avatar: bool = Field(
+        description="Whether GET /api/auth/account/me/avatar has an avatar to return.",
+        examples=[True],
+    )
 
     @classmethod
     def from_domain_schema(

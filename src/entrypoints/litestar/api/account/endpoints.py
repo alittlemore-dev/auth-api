@@ -22,6 +22,7 @@ from entrypoints.litestar.api.account.schemas import (
     CurrentAccountResponseSchema,
     CurrentAccountUpdateRequestSchema,
 )
+from entrypoints.litestar.api.openapi import error_responses
 from entrypoints.litestar.api.parameters import api_json_body, api_multipart_body
 from infra.config.constants import constants
 from infra.post_commit_actions import PostCommitActions
@@ -34,6 +35,13 @@ class AccountApiController(Controller):
 
     @get(
         "/me",
+        responses=error_responses(
+            **{
+                "401": "Missing or invalid bearer credential.",
+                "403": "Personal API token lacks auth.account.read.",
+                "404": "Account was not found.",
+            }
+        ),
         name="current-user-account-api-handler",
         description=(
             "Get the authenticated user's private account profile. Personal API"
@@ -53,6 +61,14 @@ class AccountApiController(Controller):
 
     @patch(
         "/me",
+        responses=error_responses(
+            **{
+                "400": "Malformed profile fields or invalid gender.",
+                "401": "Missing or invalid bearer credential.",
+                "403": "Personal API token lacks auth.account.update.",
+                "404": "Account was not found.",
+            }
+        ),
         name="update-current-user-account-api-handler",
         description=(
             "Update supplied fields of the authenticated user's private account"
@@ -83,7 +99,21 @@ class AccountApiController(Controller):
 
     @put(
         "/me/settings",
+        responses=error_responses(
+            **{
+                "400": "Invalid language, theme, time zone or Telegram bot preference.",
+                "503": "Telegram bot is unavailable while changing its preferences.",
+                "401": "Missing or invalid bearer credential.",
+                "403": "Personal API token lacks auth.account.update.",
+                "404": "Account was not found.",
+            }
+        ),
         name="replace-current-user-settings-api-handler",
+        description=(
+            "Replace account preferences. Omitted timeZone keeps its current value; omitted "
+            "language, theme and telegramBots reset to defaults. Requires auth.account.update "
+            "for personal API tokens. Returns the complete updated private profile."
+        ),
         opt={"pat_permissions": ("auth.account.update",)},
     )
     async def replace_settings(
@@ -115,6 +145,17 @@ class AccountApiController(Controller):
 
     @put(
         "/me/avatar",
+        responses=error_responses(
+            **{
+                "400": (
+                    "Invalid image, unsupported image format or image exceeds processing limits."
+                ),
+                "401": "Missing or invalid bearer credential.",
+                "403": "Personal API token lacks auth.account.update.",
+                "404": "Account was not found.",
+                "413": "Multipart request exceeds the 5 MiB body limit.",
+            }
+        ),
         name="replace-current-user-account-avatar-api-handler",
         description=(
             "Replace the authenticated user's private avatar. Personal API "
@@ -153,6 +194,13 @@ class AccountApiController(Controller):
 
     @delete(
         "/me/avatar",
+        responses=error_responses(
+            **{
+                "401": "Missing or invalid bearer credential.",
+                "403": "Personal API token lacks auth.account.delete.",
+                "404": "Account was not found.",
+            }
+        ),
         name="delete-current-user-account-avatar-api-handler",
         description=(
             "Remove the authenticated user's private avatar. Personal API token"
@@ -180,6 +228,15 @@ class AccountApiController(Controller):
 
     @get(
         "/me/avatar",
+        responses=error_responses(
+            **{
+                "401": "Missing or invalid bearer credential.",
+                "403": "Personal API token lacks auth.account.read.",
+                "404": "Account or its avatar was not found.",
+            }
+        ),
+        media_type="image/webp",
+        content_encoding="binary",
         name="get-current-user-account-avatar-api-handler",
         description=(
             "Stream the authenticated user's private avatar. Personal API token"

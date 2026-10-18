@@ -34,7 +34,7 @@ from entrypoints.litestar.api.accounts.schemas import (
     ManagedAccountSessionsResponseSchema,
     ManagedAccountsResponseSchema,
 )
-from entrypoints.litestar.api.openapi import OPENAPI_PASSWORD_EXAMPLE
+from entrypoints.litestar.api.openapi import OPENAPI_PASSWORD_EXAMPLE, error_responses
 from entrypoints.litestar.api.parameters import SessionIdPath, UsernamePath, api_json_body
 
 
@@ -45,10 +45,22 @@ class AdminAccountsApiController(Controller):
 
     @get(
         "",
+        responses=error_responses(
+            **{
+                "401": "Missing or invalid bearer credential.",
+                "403": (
+                    "Administrator role or required personal API token permission is "
+                    "missing; protected-account restrictions also apply."
+                ),
+                "400": ("Missing or invalid required page and pageSize parameters."),
+            }
+        ),
         description=(
             "Get managed owner, admin and moderator accounts. Personal API "
             "token permissions: auth.accounts.read. Current role and object "
-            "ownership checks also apply."
+            "ownership checks also apply. Both page and pageSize are required. "
+            "Results are sorted by username case-insensitively, then by exact username. "
+            "A page beyond the end returns an empty accounts array with unchanged totals."
         ),
         name="admin-accounts-list-api-handler",
         status_code=status_codes.HTTP_200_OK,
@@ -65,6 +77,17 @@ class AdminAccountsApiController(Controller):
 
     @post(
         "",
+        responses=error_responses(
+            **{
+                "401": "Missing or invalid bearer credential.",
+                "403": (
+                    "Administrator role or required personal API token permission is "
+                    "missing; protected-account restrictions also apply."
+                ),
+                "404": "Managed account or session was not found.",
+                "400": "Invalid request fields, duplicate username or unsupported managed role.",
+            }
+        ),
         description=(
             "Create a managed admin or moderator account. Personal API token "
             "permissions: auth.accounts.create. Current role and object "
@@ -104,6 +127,16 @@ class AdminAccountsApiController(Controller):
 
     @get(
         "/{username:str}",
+        responses=error_responses(
+            **{
+                "401": "Missing or invalid bearer credential.",
+                "403": (
+                    "Administrator role or required personal API token permission is "
+                    "missing; protected-account restrictions also apply."
+                ),
+                "404": "Managed account or session was not found.",
+            }
+        ),
         description=(
             "Get managed account details. Personal API token permissions: "
             "auth.accounts.read. Current role and object ownership checks also "
@@ -123,6 +156,16 @@ class AdminAccountsApiController(Controller):
 
     @get(
         "/{username:str}/sessions",
+        responses=error_responses(
+            **{
+                "401": "Missing or invalid bearer credential.",
+                "403": (
+                    "Administrator role or required personal API token permission is "
+                    "missing; protected-account restrictions also apply."
+                ),
+                "404": "Managed account or session was not found.",
+            }
+        ),
         description=(
             "Get active managed account sessions. Personal API token "
             "permissions: auth.sessions.read. Current role and object ownership"
@@ -155,6 +198,16 @@ class AdminAccountsApiController(Controller):
 
     @post(
         "/{username:str}/sessions/{session_id:str}/revoke",
+        responses=error_responses(
+            **{
+                "401": "Missing or invalid bearer credential.",
+                "403": (
+                    "Administrator role or required personal API token permission is "
+                    "missing; protected-account restrictions also apply."
+                ),
+                "404": "Managed account or session was not found.",
+            }
+        ),
         description=(
             "Revoke a managed account session. Personal API token permissions: "
             "auth.sessions.revoke. Current role and object ownership checks "
@@ -187,6 +240,16 @@ class AdminAccountsApiController(Controller):
 
     @post(
         "/{username:str}/sessions/revoke-all",
+        responses=error_responses(
+            **{
+                "401": "Missing or invalid bearer credential.",
+                "403": (
+                    "Administrator role or required personal API token permission is "
+                    "missing; protected-account restrictions also apply."
+                ),
+                "404": "Managed account or session was not found.",
+            }
+        ),
         description=(
             "Revoke all managed account sessions. Personal API token "
             "permissions: auth.sessions.revoke. Current role and object "
@@ -219,6 +282,16 @@ class AdminAccountsApiController(Controller):
 
     @post(
         "/{username:str}/sessions/revoke-others",
+        responses=error_responses(
+            **{
+                "401": "Missing or invalid bearer credential.",
+                "403": (
+                    "Administrator role or required personal API token permission is "
+                    "missing; protected-account restrictions also apply."
+                ),
+                "404": "Managed account or session was not found.",
+            }
+        ),
         description=(
             "Revoke other sessions for the current managed account. Personal "
             "API token permissions: auth.sessions.revoke. Current role and "
@@ -249,6 +322,17 @@ class AdminAccountsApiController(Controller):
 
     @put(
         "/{username:str}/role",
+        responses=error_responses(
+            **{
+                "401": "Missing or invalid bearer credential.",
+                "403": (
+                    "Administrator role or required personal API token permission is "
+                    "missing; protected-account restrictions also apply."
+                ),
+                "404": "Managed account or session was not found.",
+                "400": "Invalid role; only admin or moderator can be assigned.",
+            }
+        ),
         description=(
             "Update a managed account role. Personal API token permissions: "
             "auth.accounts.role. Current role and object ownership checks also "
@@ -283,6 +367,17 @@ class AdminAccountsApiController(Controller):
 
     @put(
         "/{username:str}/password",
+        responses=error_responses(
+            **{
+                "401": "Missing or invalid bearer credential.",
+                "403": (
+                    "Administrator role or required personal API token permission is "
+                    "missing; protected-account restrictions also apply."
+                ),
+                "404": "Managed account or session was not found.",
+                "400": "Password does not meet the documented length constraints.",
+            }
+        ),
         description=(
             "Update a managed account password. Personal API token permissions:"
             " auth.accounts.password. Current role and object ownership checks "
@@ -319,6 +414,16 @@ class AdminAccountsApiController(Controller):
 
     @post(
         "/{username:str}/activate",
+        responses=error_responses(
+            **{
+                "401": "Missing or invalid bearer credential.",
+                "403": (
+                    "Administrator role or required personal API token permission is "
+                    "missing; protected-account restrictions also apply."
+                ),
+                "404": "Managed account or session was not found.",
+            }
+        ),
         description=(
             "Activate a managed account. Personal API token permissions: "
             "auth.accounts.activate. Current role and object ownership checks "
@@ -344,6 +449,16 @@ class AdminAccountsApiController(Controller):
 
     @post(
         "/{username:str}/deactivate",
+        responses=error_responses(
+            **{
+                "401": "Missing or invalid bearer credential.",
+                "403": (
+                    "Administrator role or required personal API token permission is "
+                    "missing; protected-account restrictions also apply."
+                ),
+                "404": "Managed account or session was not found.",
+            }
+        ),
         description=(
             "Deactivate a managed account. Personal API token permissions: "
             "auth.accounts.deactivate. Current role and object ownership checks"
@@ -371,6 +486,16 @@ class AdminAccountsApiController(Controller):
 
     @delete(
         "/{username:str}",
+        responses=error_responses(
+            **{
+                "401": "Missing or invalid bearer credential.",
+                "403": (
+                    "Administrator role or required personal API token permission is "
+                    "missing; protected-account restrictions also apply."
+                ),
+                "404": "Managed account or session was not found.",
+            }
+        ),
         description=(
             "Delete a managed account. Personal API token permissions: "
             "auth.accounts.delete. Current role and object ownership checks "

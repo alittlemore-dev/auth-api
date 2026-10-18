@@ -7,12 +7,37 @@ from entrypoints.litestar.api.schemas import CamelCaseSchema
 
 
 class AuthSessionsStatusResponseSchema(CamelCaseSchema):
-    expired_count: Annotated[int, Field(title="Expired session count")]
-    expiring_soon_count: Annotated[int, Field(title="Expiring soon session count")]
-    expiring_soon_days: Annotated[int, Field(title="Expiring soon window in days")]
+    expired_count: Annotated[
+        int,
+        Field(
+            title="Expired session count",
+            description="Sessions already expired at the observation time.",
+            examples=[12],
+        ),
+    ]
+    expiring_soon_count: Annotated[
+        int,
+        Field(
+            title="Expiring soon session count",
+            description="Sessions expiring within the reported upcoming window.",
+            examples=[4],
+        ),
+    ]
+    expiring_soon_days: Annotated[
+        int,
+        Field(
+            title="Expiring soon window in days",
+            description="Configured upcoming-expiration observation window in days.",
+            examples=[7],
+        ),
+    ]
     scheduled_prune_interval_seconds: Annotated[
         int,
-        Field(title="Scheduled prune interval in seconds"),
+        Field(
+            title="Scheduled prune interval in seconds",
+            description="Configured background session cleanup interval in seconds.",
+            examples=[3600],
+        ),
     ]
 
     @classmethod
@@ -30,13 +55,45 @@ class AuthSessionsStatusResponseSchema(CamelCaseSchema):
 
 
 class AuthSessionsPruneResponseSchema(CamelCaseSchema):
-    deleted_count: Annotated[int, Field(title="Deleted session count")]
-    expired_count: Annotated[int, Field(title="Expired session count")]
-    expiring_soon_count: Annotated[int, Field(title="Expiring soon session count")]
-    expiring_soon_days: Annotated[int, Field(title="Expiring soon window in days")]
+    deleted_count: Annotated[
+        int,
+        Field(
+            title="Deleted session count",
+            description="Expired sessions removed by this operation.",
+            examples=[12],
+        ),
+    ]
+    expired_count: Annotated[
+        int,
+        Field(
+            title="Expired session count",
+            description="Sessions already expired at the observation time.",
+            examples=[12],
+        ),
+    ]
+    expiring_soon_count: Annotated[
+        int,
+        Field(
+            title="Expiring soon session count",
+            description="Sessions expiring within the reported upcoming window.",
+            examples=[4],
+        ),
+    ]
+    expiring_soon_days: Annotated[
+        int,
+        Field(
+            title="Expiring soon window in days",
+            description="Configured upcoming-expiration observation window in days.",
+            examples=[7],
+        ),
+    ]
     scheduled_prune_interval_seconds: Annotated[
         int,
-        Field(title="Scheduled prune interval in seconds"),
+        Field(
+            title="Scheduled prune interval in seconds",
+            description="Configured background session cleanup interval in seconds.",
+            examples=[3600],
+        ),
     ]
 
     @classmethod
