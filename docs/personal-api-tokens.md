@@ -61,3 +61,14 @@ UI. Publish the SDK separately before updating production registry dependencies/
 Local checks and `infra make dev` use the actual built wheel without a package release.
 Agent Access is retired by competency migration 0021; historical migrations remain intact.
 Only agent records and types are removed. Downgrade restores empty agent tables, not deleted data.
+
+## Asset reports
+
+A token with `workspace.assets.read` can read the owner's report at
+`/api/personal-workspace/finance/assets/report?start=2026-03-01&end=2026-03-31&currency=RUB`.
+Dates are inclusive. The report includes the aggregate eligible income used for the savings goal.
+To access the new scope with an existing account, issue a token that includes it.
+
+Asset writes use the corresponding create, update or delete scope. An operation affecting the
+budget also requires the corresponding `workspace.finance` scope. Restoring a cancelled movement
+requires update permissions.
