@@ -10,6 +10,9 @@ def test_public_interaction_scopes_do_not_grant_editorial_permissions() -> None:
     assert "competency.articles.create" not in user_codes
     assert "competency.matrix.create" not in user_codes
     assert "auth.accounts.password" not in user_codes
+    assert {code for code in user_codes if code.startswith("workspace.assets.")} == {
+        f"workspace.assets.{action}" for action in ("read", "create", "update", "delete")
+    }
     assert "workspace.telegram.create" in user_codes
     assert "workspace.tools.manage" not in user_codes
     moderator_codes = registry.codes_for(

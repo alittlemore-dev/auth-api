@@ -21,6 +21,7 @@ PERMISSION_DOMAINS: tuple[tuple[str, str, str, tuple[str, ...]], ...] = (
     ("workspace", "events", "user", ("read", "create", "update", "delete")),
     ("workspace", "calendar", "user", ("read",)),
     ("workspace", "finance", "user", ("read", "create", "update", "delete")),
+    ("workspace", "assets", "user", ("read", "create", "update", "delete")),
     ("workspace", "vault", "user", ("read",)),
     ("workspace", "important_info", "user", ("read", "create", "update", "delete")),
     ("workspace", "wiki_links", "user", ("read",)),

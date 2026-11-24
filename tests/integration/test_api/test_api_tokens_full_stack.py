@@ -108,7 +108,12 @@ async def test_api_token_lifecycle_hash_encryption_and_logout_independence(
     )
     assert revealed.json() == {"secret": secret}
     assert revealed.headers["cache-control"] == "no-store"
-    second = auth_client.post(BASE, json=token_payload(), headers=browser).json()
+    second = auth_client.post(
+        BASE, json=token_payload(permissions=["workspace.assets.read"]), headers=browser
+    ).json()
+    assert auth_client.post("/api/auth/verify/v2", headers=token_bearer).json()["permissions"] == [
+        "auth.account.read"
+    ]
     assert second["secret"] != secret
     assert auth_client.post("/api/auth/logout", headers=browser).status_code == 200
     assert auth_client.post("/api/auth/verify/v2", headers=token_bearer).status_code == 200
