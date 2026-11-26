@@ -1,5 +1,5 @@
 import binascii
-import datetime
+import datetime as dt
 import json
 import math
 from dataclasses import dataclass
@@ -39,8 +39,8 @@ class PasetoTokenHandler(TokenHandler):
     def prepare_payload(self, payload: AccessTokenPayload) -> dict[str, Any]:
         payload_dict = payload.to_dict()
         payload_dict["exp"] = (
-            datetime.datetime.now(tz=ZoneInfo("Etc/UTC"))
-            + datetime.timedelta(seconds=self.token_expire_seconds)
+            dt.datetime.now(tz=ZoneInfo("Etc/UTC"))
+            + dt.timedelta(seconds=self.token_expire_seconds)
         ).isoformat()
         return payload_dict
 
@@ -60,12 +60,12 @@ class PasetoTokenHandler(TokenHandler):
             raise UnauthorizedError
         return payload_dict
 
-    def _read_expires_at(self, payload_dict: dict[str, Any]) -> datetime.datetime | None:
+    def _read_expires_at(self, payload_dict: dict[str, Any]) -> dt.datetime | None:
         expires_at_raw = payload_dict.get("exp")
         if not isinstance(expires_at_raw, str):
             return None
         try:
-            expires_at = datetime.datetime.fromisoformat(expires_at_raw)
+            expires_at = dt.datetime.fromisoformat(expires_at_raw)
         except ValueError:
             logger.warning(event="Token exp claim is invalid")
             return None
@@ -78,7 +78,7 @@ class PasetoTokenHandler(TokenHandler):
         if expires_at is None:
             logger.warning(event="Token exp claim is missing or invalid")
             raise UnauthorizedError
-        if expires_at <= datetime.datetime.now(tz=ZoneInfo("Etc/UTC")):
+        if expires_at <= dt.datetime.now(tz=ZoneInfo("Etc/UTC")):
             logger.warning(event="Token exp claim is expired")
             raise UnauthorizedError
 
@@ -105,7 +105,7 @@ class PasetoTokenHandler(TokenHandler):
         if expires_at is None:
             return None
         remaining_seconds = math.ceil(
-            (expires_at - datetime.datetime.now(tz=ZoneInfo("Etc/UTC"))).total_seconds(),
+            (expires_at - dt.datetime.now(tz=ZoneInfo("Etc/UTC"))).total_seconds(),
         )
         if remaining_seconds <= 0:
             return None

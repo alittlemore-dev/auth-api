@@ -1,6 +1,6 @@
 # ruff: noqa: SLF001
 import binascii
-import datetime
+import datetime as dt
 from unittest.mock import Mock, patch
 from zoneinfo import ZoneInfo
 
@@ -58,7 +58,7 @@ class TestPasetoTokenHandler:
             self.auth_handler.decode_token(Token(token))
 
     def test_decode_token_returns_domain_user_payload(self) -> None:
-        expires_at = datetime.datetime.now(tz=ZoneInfo("Etc/UTC")) + datetime.timedelta(minutes=1)
+        expires_at = dt.datetime.now(tz=ZoneInfo("Etc/UTC")) + dt.timedelta(minutes=1)
         token = pyseto.encode(
             key=self.auth_handler._create_secret_key(),
             payload={
@@ -82,7 +82,7 @@ class TestPasetoTokenHandler:
             self.auth_handler.decode_token(Token(token))
 
     def test_decode_token_rejects_expired_token(self) -> None:
-        expired_at = datetime.datetime.now(tz=ZoneInfo("Etc/UTC")) - datetime.timedelta(seconds=1)
+        expired_at = dt.datetime.now(tz=ZoneInfo("Etc/UTC")) - dt.timedelta(seconds=1)
         token = pyseto.encode(
             key=self.auth_handler._create_secret_key(),
             payload={
@@ -115,7 +115,7 @@ class TestPasetoTokenHandler:
         assert remaining_seconds is None
 
     def test_get_token_remaining_seconds_returns_none_for_expired_token(self) -> None:
-        expired_at = datetime.datetime.now(tz=ZoneInfo("Etc/UTC")) - datetime.timedelta(seconds=1)
+        expired_at = dt.datetime.now(tz=ZoneInfo("Etc/UTC")) - dt.timedelta(seconds=1)
         token = pyseto.encode(
             key=self.auth_handler._create_secret_key(),
             payload={
